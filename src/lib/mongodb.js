@@ -1,4 +1,8 @@
 import { MongoClient } from 'mongodb';
+import dns from 'dns';
+
+// Fix for Node.js 22+ DNS resolution order causing SSL errors with MongoDB Atlas
+dns.setDefaultResultOrder('ipv4first');
 
 const uri = process.env.MONGODB_URI;
 const options = {};
