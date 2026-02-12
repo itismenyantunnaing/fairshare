@@ -1,6 +1,6 @@
 import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
-import { verifyCertificateImage } from "@/lib/vision";
+import { verifyCertificateText } from "@/lib/vision";
 
 export async function POST(req) {
   try {
@@ -8,7 +8,7 @@ export async function POST(req) {
     const db = client.db("FairShare");
     const body = await req.json();
 
-    const { hostelName, email, address, city, phone, licenseImage } = body;
+    const { hostelName, email, address, city, phone, licenseImage, ocrText, ocrConfidence } = body;
 
     // Validate required fields
     if (!hostelName || !email || !address || !city || !phone || !licenseImage) {
@@ -27,33 +27,20 @@ export async function POST(req) {
       );
     }
 
-    // Verify certificate image with Google Vision API
+    // Verify certificate using OCR text from client
     let visionResult = null;
     let verificationStatus = "pending";
     let autoCheckPassed = false;
 
-    try {
-      visionResult = await verifyCertificateImage(licenseImage);
+    if (ocrText) {
+      visionResult = verifyCertificateText(ocrText, ocrConfidence || 0);
+      autoCheckPassed = visionResult.isLegit;
 
-      if (visionResult.apiError) {
-        // Vision API had an error (billing, credentials, etc.)
-        // Still save as "pending" for manual admin review
-        autoCheckPassed = false;
-        verificationStatus = "pending";
-      } else {
-        autoCheckPassed = visionResult.isLegit;
-        if (!autoCheckPassed) {
-          // Vision API successfully analyzed but says it's not a legit certificate
-          verificationStatus = "auto_rejected";
-        }
-        // If autoCheckPassed is true, status stays "pending" for admin manual review
+      if (!autoCheckPassed) {
+        verificationStatus = "auto_rejected";
       }
-    } catch (visionError) {
-      console.error("Vision API unavailable:", visionError.message);
-      // If Vision API is completely unavailable, still save for manual review
-      verificationStatus = "pending";
-      visionResult = { apiError: true, error: "Vision API unavailable: " + visionError.message };
     }
+    // If no OCR text provided, stays as "pending" for manual review
 
     // Save hostel record to MongoDB
     const result = await db.collection("hostels").insertOne({
@@ -88,9 +75,6 @@ export async function POST(req) {
         "Your registration has been submitted successfully and is pending admin review.";
     }
 
-    // For pending status (whether auto-checked or API error), treat as success for the user
-    const responseType = verificationStatus === "auto_rejected" ? false : true;
-
     return NextResponse.json({
       success: true,
       id: result.insertedId,
@@ -117,7 +101,6 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
 
-    // Build query filter
     const query = {};
     if (status) {
       query["verification.status"] = status;
@@ -129,7 +112,6 @@ export async function GET(req) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Strip the full base64 image from list responses to reduce payload size
     const sanitizedHostels = hostels.map((h) => ({
       ...h,
       licenseImage: h.licenseImage ? true : false,

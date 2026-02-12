@@ -1,177 +1,236 @@
-import vision from "@google-cloud/vision";
-
-let client;
-
-function getVisionClient() {
-  if (client) return client;
-
-  // Option 1: GOOGLE_APPLICATION_CREDENTIALS env var (path to service account JSON file)
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    client = new vision.ImageAnnotatorClient();
-  }
-  // Option 2: Individual env vars for credentials
-  else if (
-    process.env.GOOGLE_CLOUD_CLIENT_EMAIL &&
-    process.env.GOOGLE_CLOUD_PRIVATE_KEY
-  ) {
-    client = new vision.ImageAnnotatorClient({
-      credentials: {
-        client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      },
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-    });
-  } else {
-    throw new Error(
-      "Google Cloud Vision credentials not configured. " +
-        "Set GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_CLOUD_CLIENT_EMAIL + GOOGLE_CLOUD_PRIVATE_KEY in .env.local"
-    );
-  }
-
-  return client;
-}
-
 /**
- * Verifies a certificate image using Google Cloud Vision API.
- * Performs text detection and label detection to determine if the
- * uploaded image looks like a legitimate hostel certificate/license.
+ * Server-side certificate verification.
+ * Scores the OCR text extracted on the client side to determine
+ * if the image looks like a legitimate hostel certificate/license.
  *
- * @param {string} base64Image - Base64-encoded image (with or without data URL prefix)
- * @returns {Promise<object>} Verification result with isLegit flag and analysis details
+ * Uses a tiered keyword system:
+ * - Primary keywords: Strong certificate indicators (certificate, license, permit, etc.)
+ * - Authority keywords: Government/official body terms (government, ministry, department, etc.)
+ * - Domain keywords: Hostel/tourism specific terms (hostel, accommodation, tourism, etc.)
+ *
+ * Requires matches from MULTIPLE categories to pass verification.
+ *
+ * @param {string} ocrText - Text extracted from the image via client-side Tesseract.js
+ * @param {number} ocrConfidence - OCR confidence score (0-100)
+ * @returns {object} Verification result with isLegit flag and analysis details
  */
-export async function verifyCertificateImage(base64Image) {
-  try {
-    const visionClient = getVisionClient();
+export function verifyCertificateText(ocrText, ocrConfidence = 0) {
+  const fullText = (ocrText || "").toLowerCase();
 
-    // Strip data URL prefix if present (e.g. "data:image/png;base64,")
-    const imageContent = base64Image.replace(/^data:image\/\w+;base64,/, "");
+  // Primary keywords — these directly indicate a certificate/license document
+  const primaryKeywords = [
+    "certificate",
+    "license",
+    "licence",
+    "permit",
+    "certified",
+    "registration",
+    "registered",
+    "authorized",
+    "authorised",
+  ];
 
-    const request = {
-      image: { content: imageContent },
-      features: [
-        { type: "TEXT_DETECTION" },
-        { type: "LABEL_DETECTION", maxResults: 20 },
-        { type: "DOCUMENT_TEXT_DETECTION" },
-      ],
-    };
+  // Authority keywords — indicate an official/government issuing body
+  const authorityKeywords = [
+    "government",
+    "ministry",
+    "department",
+    "authority",
+    "bureau",
+    "municipal",
+    "council",
+    "board",
+    "official",
+    "republic",
+    "state",
+  ];
 
-    const [result] = await visionClient.annotateImage(request);
+  // Domain keywords — hostel/tourism industry specific
+  const domainKeywords = [
+    "hostel",
+    "accommodation",
+    "tourism",
+    "hotel",
+    "lodging",
+    "guest house",
+    "guesthouse",
+  ];
 
-    // Extract detected text
-    const fullText =
-      result.fullTextAnnotation?.text?.toLowerCase() ||
-      (result.textAnnotations?.[0]?.description?.toLowerCase() ?? "");
+  // Document action keywords — terms used in official documents
+  const documentKeywords = [
+    "issued",
+    "granted",
+    "valid",
+    "approved",
+    "regulation",
+    "compliance",
+    "inspection",
+    "hereby",
+    "certify",
+    "accordance",
+    "pursuant",
+    "expire",
+    "renewal",
+  ];
 
-    // Extract detected labels
-    const labels = (result.labelAnnotations || []).map((l) => ({
-      description: l.description.toLowerCase(),
-      score: l.score,
-    }));
+  // Count matches per category
+  const matchedPrimary = [];
+  const matchedAuthority = [];
+  const matchedDomain = [];
+  const matchedDocument = [];
 
-    const labelNames = labels.map((l) => l.description);
-
-    // Certificate/license related keywords to look for in text
-    const certificateKeywords = [
-      "certificate",
-      "license",
-      "licence",
-      "registration",
-      "permit",
-      "authorized",
-      "authorised",
-      "approved",
-      "government",
-      "ministry",
-      "official",
-      "hostel",
-      "accommodation",
-      "tourism",
-      "certified",
-      "registered",
-      "department",
-      "authority",
-      "granted",
-      "issued",
-      "valid",
-      "regulation",
-      "compliance",
-      "inspection",
-      "bureau",
-      "municipal",
-      "council",
-      "board",
-    ];
-
-    // Document-related labels
-    const documentLabels = [
-      "document",
-      "text",
-      "certificate",
-      "paper",
-      "receipt",
-      "font",
-      "letter",
-      "writing",
-      "printed",
-      "page",
-      "material",
-      "publication",
-      "poster",
-      "banner",
-      "sign",
-    ];
-
-    // Score calculation
-    let score = 0;
-    const matchedKeywords = [];
-    const matchedLabels = [];
-
-    // Check for certificate keywords in detected text
-    for (const keyword of certificateKeywords) {
-      if (fullText.includes(keyword)) {
-        score += 5;
-        matchedKeywords.push(keyword);
-      }
-    }
-
-    // Check for document-related labels
-    for (const docLabel of documentLabels) {
-      if (labelNames.some((l) => l.includes(docLabel))) {
-        score += 3;
-        matchedLabels.push(docLabel);
-      }
-    }
-
-    // Bonus: Has substantial text content (certificates typically have text)
-    if (fullText.length > 50) score += 10;
-    if (fullText.length > 200) score += 5;
-    if (fullText.length > 500) score += 5;
-
-    // Threshold: score >= 15 means it looks like a legitimate document
-    const isLegit = score >= 15;
-
-    return {
-      isLegit,
-      score,
-      matchedKeywords,
-      matchedLabels,
-      detectedLabels: labelNames,
-      textLength: fullText.length,
-      textPreview: fullText.substring(0, 300),
-    };
-  } catch (error) {
-    console.error("Vision API error:", error);
-    // Mark as unavailable so the API route knows this was an error, not a failed check
-    return {
-      isLegit: null,
-      apiError: true,
-      score: 0,
-      error: error.message,
-      matchedKeywords: [],
-      matchedLabels: [],
-      detectedLabels: [],
-      textLength: 0,
-      textPreview: "",
-    };
+  for (const kw of primaryKeywords) {
+    if (fullText.includes(kw)) matchedPrimary.push(kw);
   }
+  for (const kw of authorityKeywords) {
+    if (fullText.includes(kw)) matchedAuthority.push(kw);
+  }
+  for (const kw of domainKeywords) {
+    if (fullText.includes(kw)) matchedDomain.push(kw);
+  }
+  for (const kw of documentKeywords) {
+    if (fullText.includes(kw)) matchedDocument.push(kw);
+  }
+
+  const allMatched = [
+    ...matchedPrimary,
+    ...matchedAuthority,
+    ...matchedDomain,
+    ...matchedDocument,
+  ];
+
+  // Score calculation with weighted categories
+  let score = 0;
+
+  // Primary keywords are worth the most (10 points each)
+  score += matchedPrimary.length * 10;
+
+  // Authority keywords (7 points each)
+  score += matchedAuthority.length * 7;
+
+  // Domain keywords (8 points each)
+  score += matchedDomain.length * 8;
+
+  // Document action keywords (5 points each)
+  score += matchedDocument.length * 5;
+
+  // Small bonus for text length (reduced from before — not enough alone)
+  if (fullText.length > 100) score += 3;
+  if (fullText.length > 300) score += 2;
+
+  // Determine categories matched
+  const categoriesMatched =
+    (matchedPrimary.length > 0 ? 1 : 0) +
+    (matchedAuthority.length > 0 ? 1 : 0) +
+    (matchedDomain.length > 0 ? 1 : 0) +
+    (matchedDocument.length > 0 ? 1 : 0);
+
+  // STRICT RULES:
+  // 1. Must have at least 1 primary keyword (certificate, license, permit, etc.)
+  // 2. Must match keywords from at least 2 different categories
+  // 3. Must have a score of at least 25
+  const hasPrimaryKeyword = matchedPrimary.length > 0;
+  const hasMultipleCategories = categoriesMatched >= 2;
+  const meetsScoreThreshold = score >= 25;
+
+  const isLegit = hasPrimaryKeyword && hasMultipleCategories && meetsScoreThreshold;
+
+  // --- Extract structured fields from OCR text ---
+  const originalText = ocrText || "";
+
+  // Extract registration/license number (must contain at least one digit)
+  const regNoPatterns = [
+    /(?:registration|license|licence|permit|ref|certificate)\s*(?:no|number|#|:)[.:\s#]*([A-Z0-9][\w\-\/]{2,20})/i,
+    /(?:no|number)[.:\s#]+([A-Z0-9][\w\-\/]{2,20})/i,
+    /\b([A-Z]{2,5}[\-\/]?\d{3,10}[\-\/]?\d{0,6})\b/,
+    /#\s*([A-Z0-9][\w\-\/]{2,20})/i,
+  ];
+  let registrationNo = null;
+  for (const pattern of regNoPatterns) {
+    const match = originalText.match(pattern);
+    if (match) {
+      const candidate = match[1].trim();
+      // Must contain at least one digit to be a valid registration number
+      if (/\d/.test(candidate)) {
+        registrationNo = candidate;
+        break;
+      }
+    }
+  }
+
+  // Extract dates (various formats)
+  const datePatterns = [
+    /(\d{1,2}[\s\/\-\.]\w+[\s\/\-\.]\d{2,4})/g,
+    /(\w+\s+\d{1,2},?\s+\d{4})/g,
+    /(\d{4}[\-\/]\d{1,2}[\-\/]\d{1,2})/g,
+    /(\d{1,2}[\-\/]\d{1,2}[\-\/]\d{2,4})/g,
+  ];
+  const allDates = [];
+  for (const pattern of datePatterns) {
+    const matches = originalText.matchAll(pattern);
+    for (const m of matches) {
+      const d = m[1].trim();
+      if (d.length >= 6 && !allDates.includes(d)) {
+        allDates.push(d);
+      }
+    }
+  }
+
+  // Try to identify issue date and expiry date
+  let issueDate = null;
+  let expiryDate = null;
+
+  const issueDateMatch = originalText.match(
+    /(?:date\s*of\s*issue|issued?\s*(?:on|date)?|effective\s*date)[:\s]*([^\n]{6,30})/i
+  );
+  if (issueDateMatch) issueDate = issueDateMatch[1].trim();
+
+  const expiryDateMatch = originalText.match(
+    /(?:valid\s*until|expir(?:y|es|ation)\s*(?:date)?|valid\s*(?:through|to|thru)|expire[sd]?\s*(?:on)?)[:\s]*([^\n]{6,30})/i
+  );
+  if (expiryDateMatch) expiryDate = expiryDateMatch[1].trim();
+
+  // If no labeled dates found, use extracted dates as fallback
+  if (!issueDate && allDates.length > 0) issueDate = allDates[0];
+  if (!expiryDate && allDates.length > 1) expiryDate = allDates[1];
+
+  // Extract authorized by / issuing authority
+  let authorizedBy = null;
+  const authPatterns = [
+    /(?:authorized\s*by|authorised\s*by|issued\s*by|signed\s*by|approved\s*by|authority)[:\s]*([^\n]{3,60})/i,
+    /(?:department\s*of|ministry\s*of|bureau\s*of|office\s*of)[^\n]{0,60}/i,
+  ];
+  for (const pattern of authPatterns) {
+    const match = originalText.match(pattern);
+    if (match) {
+      authorizedBy = match[0].trim();
+      break;
+    }
+  }
+
+  return {
+    isLegit,
+    score,
+    confidence: Math.round(ocrConfidence),
+    matchedKeywords: allMatched,
+    matchedLabels: [],
+    detectedLabels: [],
+    textLength: fullText.length,
+    textPreview: fullText.substring(0, 300),
+    extractedFields: {
+      registrationNo,
+      issueDate,
+      expiryDate,
+      authorizedBy,
+      datesFound: allDates,
+    },
+    details: {
+      primaryMatches: matchedPrimary,
+      authorityMatches: matchedAuthority,
+      domainMatches: matchedDomain,
+      documentMatches: matchedDocument,
+      categoriesMatched,
+      hasPrimaryKeyword,
+    },
+  };
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import Tesseract from "tesseract.js";
 
 export default function HostelOnboarding() {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ export default function HostelOnboarding() {
   const [licenseFile, setLicenseFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState("");
   const [result, setResult] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -60,10 +62,11 @@ export default function HostelOnboarding() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setLoadingStep("Scanning certificate...");
     setResult(null);
 
     try {
-      // Convert image to base64 for submission
+      // Convert image to base64
       const reader = new FileReader();
       const base64Image = await new Promise((resolve, reject) => {
         reader.onloadend = () => resolve(reader.result);
@@ -71,12 +74,28 @@ export default function HostelOnboarding() {
         reader.readAsDataURL(licenseFile);
       });
 
+      // Run OCR in the browser (fast with Web Workers)
+      let ocrText = "";
+      let ocrConfidence = 0;
+      try {
+        const { data } = await Tesseract.recognize(base64Image, "eng");
+        ocrText = data.text;
+        ocrConfidence = data.confidence;
+      } catch (ocrError) {
+        console.error("OCR failed:", ocrError);
+        // Continue without OCR — server will set status to pending
+      }
+
+      setLoadingStep("Submitting registration...");
+
       const response = await fetch("/api/hostels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           licenseImage: base64Image,
+          ocrText,
+          ocrConfidence,
         }),
       });
 
@@ -328,7 +347,7 @@ export default function HostelOnboarding() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                     />
                   </svg>
-                  Verifying Certificate...
+                  {loadingStep || "Processing..."}
                 </span>
               ) : (
                 "Submit Registration"
