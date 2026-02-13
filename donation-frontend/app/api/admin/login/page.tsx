@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
         const res = await fetch("/api/auth/session");
         const data = await res.json();
         if (data?.ok) {
-          router.replace("/api/admin");
+          router.replace("/admin");
           return;
         }
       } catch (err) {
@@ -45,7 +45,7 @@ export default function AdminLoginPage() {
         setError(data?.error || "Login failed. Please try again.");
         return;
       }
-      router.replace("/api/admin");
+      router.replace("/admin");
     } catch (err) {
       console.error("Admin login failed", err);
       setError("Login failed. Please try again.");

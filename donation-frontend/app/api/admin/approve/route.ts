@@ -3,6 +3,9 @@ import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { cookies } from "next/headers";
 import { isAdminEmail } from "@/lib/admin";
+import { generateCertificatePdf } from "@/lib/certificates/pdf";
+import { uploadPdfToCloudinary } from "@/lib/certificates/upload";
+import { sendCertificateEmail } from "@/lib/email";
 
 const COLLECTION_MAP: Record<string, { pending: string; approved: string }> = {
   donation: { pending: "pending_donations", approved: "approved_donations" },
@@ -65,6 +68,71 @@ export async function POST(req: Request) {
     const insertRes = await db.collection(map.approved).insertOne(approvedDoc);
     if (!insertRes.acknowledged) {
       return NextResponse.json({ ok: false, error: "insert failed" }, { status: 500 });
+    }
+
+        // ✅ Generate certificate (after approval insert)
+    try {
+      const donorName = pendingDoc?.donor?.name || "Donor";
+      const donorEmail = pendingDoc?.donor?.email || "";
+      if (donorEmail) {
+        const certificateNo = `FS-${new Date().getFullYear()}-${String(insertRes.insertedId).slice(-6).toUpperCase()}`;
+
+        // amount/items text
+        const amountText =
+          type === "donation"
+            ? `${pendingDoc?.amount ?? "-"} ${pendingDoc?.currency ?? "MMK"}`
+            : `${(pendingDoc?.items || [])
+                .map((it: any) => `${it?.item ?? "item"} x${it?.qty ?? "?"}`)
+                .join(", ") || "-"}`;
+
+        const issuedAtISO = new Date().toISOString();
+        const pdfBytes = await generateCertificatePdf({
+          certificateNo,
+          donorName,
+          donorEmail,
+          type,
+          amountText,
+          cause: pendingDoc?.cause,
+          issuedAtISO,
+          transactionId: pendingDoc?.transactionId,
+        });
+
+        const upload = await uploadPdfToCloudinary(pdfBytes, certificateNo);
+
+        await db.collection("certificates").insertOne({
+          certificateNo,
+          donorName,
+          donorEmail,
+          type,
+          pendingId,
+          approvedId: insertRes.insertedId,
+          pdfUrl: upload.secure_url,
+          pdfPublicId: upload.public_id,
+          issuedAt: new Date(issuedAtISO),
+          createdAt: new Date(),
+        });
+
+        // after saving certificate in DB:
+await sendCertificateEmail({
+  to: donorEmail,
+  donorName,
+  certificateNo,
+  pdfUrl: upload.secure_url,
+});
+
+        // OPTIONAL: enqueue for teammate email worker
+        // await db.collection("email_queue").insertOne({
+        //   kind: "donation_certificate",
+        //   to: donorEmail,
+        //   certificateNo,
+        //   pdfUrl: upload.secure_url,
+        //   createdAt: new Date(),
+        //   status: "pending",
+        // });
+      }
+    } catch (e) {
+      // Don't fail approval if certificate fails
+      console.warn("Certificate generation failed:", e);
     }
 
     await db.collection(map.pending).deleteOne({ _id: pendingId });

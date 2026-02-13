@@ -1,3 +1,4 @@
+// lib/mongodb.ts
 import { MongoClient } from "mongodb";
 
 let client: MongoClient | undefined;
@@ -10,9 +11,7 @@ declare global {
 
 function ensureClientInitialized() {
   const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error("Missing MONGODB_URI environment variable");
-  }
+  if (!uri) throw new Error("Missing MONGODB_URI environment variable");
 
   if (!clientPromise) {
     if (process.env.NODE_ENV === "development") {
@@ -31,7 +30,7 @@ function ensureClientInitialized() {
 }
 
 export async function getDb(dbName?: string) {
-  const promise = ensureClientInitialized();
-  const c = await promise;
-  return c.db(dbName);
+  const c = await ensureClientInitialized();
+  const name = dbName || process.env.MONGODB_DB || "fairshare";
+  return c.db(name);
 }
