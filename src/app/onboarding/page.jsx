@@ -1,11 +1,16 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Tesseract from "tesseract.js";
+import { uploadImage } from "@/lib/supabase";
 
 export default function HostelOnboarding() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     hostelName: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     address: "",
     city: "",
     phone: "",
@@ -38,14 +43,14 @@ export default function HostelOnboarding() {
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert("File size must be less than 5MB");
+      alert("ဖိုင်အရွယ်အစား 5MB ထက်မကျော်ရပါ");
       e.target.value = "";
       return;
     }
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Please upload a valid image file");
+      alert("ကျေးဇူးပြု၍ မှန်ကန်သော ပုံဖိုင်ကို တင်ပေးပါ");
       e.target.value = "";
       return;
     }
@@ -62,8 +67,27 @@ export default function HostelOnboarding() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setLoadingStep("Scanning certificate...");
+    setLoadingStep("လက်မှတ်ကို စကန်ဖတ်နေသည်...");
     setResult(null);
+
+    // Validate password match
+    if (formData.password !== formData.confirmPassword) {
+      setResult({
+        type: "error",
+        message: "စကားဝှက်များ မတူညီပါ။ ထပ်မံစစ်ဆေးပါ။",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setResult({
+        type: "error",
+        message: "စကားဝှက် အနည်းဆုံး ၆ လုံး ရှိရမည်။",
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       // Convert image to base64
@@ -86,14 +110,32 @@ export default function HostelOnboarding() {
         // Continue without OCR — server will set status to pending
       }
 
-      setLoadingStep("Submitting registration...");
+      // Upload image to Supabase Storage
+      setLoadingStep("ပုံတင်နေသည်...");
+      const uploadResult = await uploadImage(licenseFile, "certificates");
 
-      const response = await fetch("/api/hostels", {
+      if (uploadResult.error) {
+        setResult({
+          type: "error",
+          message: uploadResult.error || "ပုံတင်ရာတွင် အမှားဖြစ်ပွားပါသည်။",
+        });
+        setLoading(false);
+        return;
+      }
+
+      setLoadingStep("အကောင့်ဖွင့်နေသည်...");
+
+      const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
-          licenseImage: base64Image,
+          hostelName: formData.hostelName,
+          email: formData.email,
+          password: formData.password,
+          address: formData.address,
+          city: formData.city,
+          phone: formData.phone,
+          licenseImageUrl: uploadResult.url,
           ocrText,
           ocrConfidence,
         }),
@@ -103,32 +145,29 @@ export default function HostelOnboarding() {
 
       if (data.success) {
         const isPending = data.verification.status === "pending";
+
+        // Redirect to profile page immediately if AI verified (user is logged in via cookie)
+        if (isPending && data.id) {
+          router.push(`/shelter/${data.id}`);
+          router.refresh();
+          return;
+        }
+
         setResult({
-          type: isPending ? "success" : "warning",
+          type: "warning",
           message: data.verification.message,
           status: data.verification.status,
         });
-
-        // Reset form when registration is accepted (pending for review)
-        if (isPending) {
-          setFormData({ hostelName: "", email: "", address: "", city: "", phone: "" });
-          setLicenseFile(null);
-          setImagePreview(null);
-          // Reset the file input element so a new image can be uploaded
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
-        }
       } else {
         setResult({
           type: "error",
-          message: data.error || "Registration failed. Please try again.",
+          message: data.error || "မှတ်ပုံတင်ခြင်း မအောင်မြင်ပါ။ ထပ်မံကြိုးစားပါ။",
         });
       }
     } catch (error) {
       setResult({
         type: "error",
-        message: "Network error. Please check your connection and try again.",
+        message: "ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။",
       });
     } finally {
       setLoading(false);
@@ -136,42 +175,35 @@ export default function HostelOnboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4">
+    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4">
       <div className="max-w-xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            FairShare
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">Hostel Management Platform</p>
-        </div>
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900">
-              Register Your Hostel
+              ခိုလှုံရာအိမ် မှတ်ပုံတင်ခြင်း
             </h2>
             <p className="text-gray-500 text-sm mt-1">
-              Upload your hostel certificate for verification. We use automated
-              checks followed by manual admin review.
+              အတည်ပြုခြင်းအတွက် သင့်ခိုလှုံရာအိမ် လက်မှတ်ကို တင်ပေးပါ။
+              ကျွန်ုပ်တို့သည် အလိုအလျောက် စစ်ဆေးမှုများပြုလုပ်ပြီးနောက် စီမံခန့်ခွဲသူက ကိုယ်တိုင်စစ်ဆေးပါမည်။
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Hostel Name */}
+            {/* Shelter Name */}
             <div>
               <label
                 htmlFor="hostelName"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Hostel Name
+                ခိုလှုံရာအိမ် အမည်
               </label>
               <input
                 id="hostelName"
                 name="hostelName"
                 type="text"
-                placeholder="e.g. Sunrise Hostel"
+                placeholder="ဥပမာ - နွေဦးခိုလှုံရာအိမ်"
                 value={formData.hostelName}
                 onChange={handleChange}
                 required
@@ -185,21 +217,63 @@ export default function HostelOnboarding() {
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Email Address
+                အီးမေးလ်
               </label>
               <input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="e.g. owner@sunrisehostel.com"
+                placeholder="ဥပမာ - contact@shelter.com"
                 value={formData.email}
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
               <p className="text-xs text-gray-400 mt-1">
-                We will notify you about your registration status via this email.
+                သင့်မှတ်ပုံတင်ခြင်း အခြေအနေကို ဤအီးမေးလ်မှတဆင့် အကြောင်းကြားပါမည်။
               </p>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                စကားဝှက်
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="အနည်းဆုံး ၆ လုံး"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+              />
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                စကားဝှက် အတည်ပြုရန်
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="စကားဝှက်ကို ထပ်မံထည့်သွင်းပါ"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                minLength={6}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+              />
             </div>
 
             {/* Address */}
@@ -208,13 +282,13 @@ export default function HostelOnboarding() {
                 htmlFor="address"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Full Address
+                လိပ်စာအပြည့်အစုံ
               </label>
               <input
                 id="address"
                 name="address"
                 type="text"
-                placeholder="e.g. 123 Main Street, Township"
+                placeholder="ဥပမာ - အမှတ် ၁၂၃၊ ဗိုလ်ချုပ်လမ်း၊ မင်္ဂလာတောင်ညွန့်မြို့နယ်"
                 value={formData.address}
                 onChange={handleChange}
                 required
@@ -228,13 +302,13 @@ export default function HostelOnboarding() {
                 htmlFor="city"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                City
+                မြို့
               </label>
               <input
                 id="city"
                 name="city"
                 type="text"
-                placeholder="e.g. Yangon"
+                placeholder="ဥပမာ - ရန်ကုန်"
                 value={formData.city}
                 onChange={handleChange}
                 required
@@ -248,13 +322,13 @@ export default function HostelOnboarding() {
                 htmlFor="phone"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Phone Number
+                ဖုန်းနံပါတ်
               </label>
               <input
                 id="phone"
                 name="phone"
                 type="tel"
-                placeholder="e.g. +95 9 123 456 789"
+                placeholder="ဥပမာ - +95 9 123 456 789"
                 value={formData.phone}
                 onChange={handleChange}
                 required
@@ -265,7 +339,7 @@ export default function HostelOnboarding() {
             {/* Certificate Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hostel Certificate / License
+                ခိုလှုံရာအိမ် လက်မှတ် / လိုင်စင်
               </label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition cursor-pointer">
                 <input
@@ -282,11 +356,11 @@ export default function HostelOnboarding() {
                     <div>
                       <img
                         src={imagePreview}
-                        alt="Certificate preview"
+                        alt="လက်မှတ် အကြိုကြည့်ရှုခြင်း"
                         className="max-h-48 mx-auto rounded-lg mb-2"
                       />
                       <p className="text-sm text-gray-500">
-                        Click to change image
+                        ပုံပြောင်းရန် နှိပ်ပါ
                       </p>
                     </div>
                   ) : (
@@ -305,10 +379,10 @@ export default function HostelOnboarding() {
                         />
                       </svg>
                       <p className="text-sm text-gray-600 font-medium">
-                        Upload your certificate image
+                        သင့်လက်မှတ် ပုံကို တင်ပေးပါ
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        PNG, JPG up to 5MB
+                        PNG, JPG - 5MB ထိ
                       </p>
                     </div>
                   )}
@@ -347,10 +421,10 @@ export default function HostelOnboarding() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                     />
                   </svg>
-                  {loadingStep || "Processing..."}
+                  {loadingStep || "လုပ်ဆောင်နေသည်..."}
                 </span>
               ) : (
-                "Submit Registration"
+                "မှတ်ပုံတင်ခြင်း တင်သွင်းရန်"
               )}
             </button>
           </form>
@@ -362,8 +436,8 @@ export default function HostelOnboarding() {
                 result.type === "success"
                   ? "bg-green-50 border-green-200 text-green-800"
                   : result.type === "warning"
-                  ? "bg-amber-50 border-amber-200 text-amber-800"
-                  : "bg-red-50 border-red-200 text-red-800"
+                    ? "bg-amber-50 border-amber-200 text-amber-800"
+                    : "bg-red-50 border-red-200 text-red-800"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -371,21 +445,32 @@ export default function HostelOnboarding() {
                   {result.type === "success"
                     ? "\u2713"
                     : result.type === "warning"
-                    ? "!"
-                    : "\u2717"}
+                      ? "!"
+                      : "\u2717"}
                 </span>
                 <div>
                   <p className="font-medium text-sm">
                     {result.type === "success"
-                      ? "Registration Submitted"
+                      ? "မှတ်ပုံတင်ခြင်း တင်သွင်းပြီးပါပြီ"
                       : result.type === "warning"
-                      ? "Verification Issue"
-                      : "Error"}
+                        ? "အတည်ပြုခြင်း ပြဿနာ"
+                        : "အမှားအယွင်း"}
                   </p>
                   <p className="text-sm mt-1">{result.message}</p>
+                  {result.shelterId && (
+                    <a
+                      href={`/shelter/${result.shelterId}`}
+                      className="inline-block mt-3 text-sm font-semibold text-green-700 underline hover:text-green-900"
+                    >
+                      ပရိုဖိုင် စာမျက်နှာသို့ သွားရန်
+                    </a>
+                  )}
                   {result.status && (
                     <p className="text-xs mt-2 opacity-75">
-                      Status: <span className="font-medium uppercase">{result.status}</span>
+                      အခြေအနေ:{" "}
+                      <span className="font-medium uppercase">
+                        {result.status}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -397,7 +482,7 @@ export default function HostelOnboarding() {
         {/* Info Section */}
         <div className="mt-6 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <h3 className="font-semibold text-gray-900 mb-3 text-sm">
-            How Verification Works
+            အတည်ပြုခြင်း လုပ်ငန်းစဉ်
           </h3>
           <div className="space-y-3">
             <div className="flex items-start gap-3">
@@ -405,7 +490,7 @@ export default function HostelOnboarding() {
                 1
               </span>
               <p className="text-sm text-gray-600">
-                Upload your hostel certificate or license image.
+                သင့်ခိုလှုံရာအိမ် လက်မှတ် သို့မဟုတ် လိုင်စင်ပုံကို တင်ပေးပါ။
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -413,7 +498,7 @@ export default function HostelOnboarding() {
                 2
               </span>
               <p className="text-sm text-gray-600">
-                Our system automatically verifies the document using AI.
+                ကျွန်ုပ်တို့၏ စနစ်က AI ဖြင့် စာရွက်စာတမ်းကို အလိုအလျောက် စစ်ဆေးပါမည်။
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -421,8 +506,7 @@ export default function HostelOnboarding() {
                 3
               </span>
               <p className="text-sm text-gray-600">
-                If verified, an admin will manually review and approve your
-                registration.
+                အတည်ပြုပါက စီမံခန့်ခွဲသူက ကိုယ်တိုင်စစ်ဆေးပြီး သင့်မှတ်ပုံတင်ခြင်းကို အတည်ပြုပါမည်။
               </p>
             </div>
           </div>

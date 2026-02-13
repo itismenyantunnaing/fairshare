@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 const STATUS_TABS = [
-  { key: "pending", label: "Pending Review" },
-  { key: "approved", label: "Approved" },
-  { key: "auto_rejected", label: "Auto-Rejected" },
-  { key: "rejected", label: "Rejected" },
+  { key: "pending", label: "စိစစ်ရန်" },
+  { key: "approved", label: "အတည်ပြုပြီး" },
+  { key: "auto_rejected", label: "အလိုအလျောက် ငြင်းပယ်" },
+  { key: "rejected", label: "ငြင်းပယ်ပြီး" },
 ];
 
 const STATUS_COLORS = {
@@ -15,7 +16,17 @@ const STATUS_COLORS = {
   rejected: "bg-red-100 text-red-800 border-red-200",
 };
 
+const STATUS_LABELS = {
+  pending: "စိစစ်ရန်",
+  approved: "အတည်ပြုပြီး",
+  auto_rejected: "အလိုအလျောက် ငြင်းပယ်",
+  rejected: "ငြင်းပယ်ပြီး",
+};
+
 export default function AdminHostels() {
+  const router = useRouter();
+  const [admin, setAdmin] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [hostels, setHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("pending");
@@ -24,6 +35,25 @@ export default function AdminHostels() {
   const [actionLoading, setActionLoading] = useState(null);
   const [reviewNote, setReviewNote] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Admin auth check (unified)
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success && data.user && (data.user.role === "admin" || data.user.role === "super_admin")) {
+          setAdmin(data.user);
+          setAuthChecked(true);
+        } else {
+          router.push("/login");
+        }
+      } catch {
+        router.push("/login");
+      }
+    };
+    checkAdmin();
+  }, [router]);
 
   const fetchHostels = useCallback(async () => {
     setLoading(true);
@@ -41,8 +71,8 @@ export default function AdminHostels() {
   }, [activeTab]);
 
   useEffect(() => {
-    fetchHostels();
-  }, [fetchHostels]);
+    if (authChecked) fetchHostels();
+  }, [fetchHostels, authChecked]);
 
   const viewDetails = async (id) => {
     setDetailLoading(true);
@@ -74,18 +104,18 @@ export default function AdminHostels() {
         setReviewNote("");
         fetchHostels();
       } else {
-        alert(data.error || "Action failed");
+        alert(data.error || "လုပ်ဆောင်ချက် မအောင်မြင်ပါ");
       }
     } catch (error) {
       console.error("Error performing action:", error);
-      alert("Network error. Please try again.");
+      alert("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။");
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to permanently delete this hostel?")) {
+    if (!confirm("ဤခိုလှုံရာအိမ်ကို အပြီးတိုင် ဖျက်ပစ်လိုသည်မှာ သေချာပါသလား?")) {
       return;
     }
     setActionLoading("delete");
@@ -99,19 +129,19 @@ export default function AdminHostels() {
         setSelectedHostel(null);
         fetchHostels();
       } else {
-        alert(data.error || "Delete failed");
+        alert(data.error || "ဖျက်ခြင်း မအောင်မြင်ပါ");
       }
     } catch (error) {
       console.error("Error deleting hostel:", error);
-      alert("Network error. Please try again.");
+      alert("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။");
     } finally {
       setActionLoading(null);
     }
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    if (!dateStr) return "မရှိ";
+    return new Date(dateStr).toLocaleDateString("my-MM", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -133,26 +163,19 @@ export default function AdminHostels() {
     );
   });
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              FairShare Admin
-            </h1>
-            <p className="text-sm text-gray-500">Hostel Registration Management</p>
-          </div>
-          <a
-            href="/onboarding"
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-          >
-            View Registration Form
-          </a>
+  if (!authChecked) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-10 w-10 border-4 border-gray-500 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-gray-500">စစ်ဆေးနေသည်...</p>
         </div>
-      </header>
+      </div>
+    );
+  }
 
+  return (
+    <div className="min-h-[calc(100vh-64px)] bg-gray-50">
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Status Tabs & Search */}
         <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
@@ -192,7 +215,7 @@ export default function AdminHostels() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search hostels..."
+              placeholder="ခိုလှုံရာအိမ် ရှာဖွေရန်..."
               className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64"
             />
             {searchQuery && (
@@ -214,17 +237,17 @@ export default function AdminHostels() {
             {loading ? (
               <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
                 <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">Loading hostels...</p>
+                <p className="text-gray-500 text-sm">ခိုလှုံရာအိမ်များ ခေါ်ယူနေသည်...</p>
               </div>
             ) : filteredHostels.length === 0 ? (
               <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
                 {searchQuery ? (
                   <p className="text-gray-400 text-sm">
-                    No results for &quot;{searchQuery}&quot; in {activeTab.replace("_", " ")} hostels
+                    &quot;{searchQuery}&quot; အတွက် {STATUS_LABELS[activeTab]} တွင် ရလဒ်မရှိပါ
                   </p>
                 ) : (
                   <p className="text-gray-400 text-sm">
-                    No hostels with status &quot;{activeTab}&quot;
+                    &quot;{STATUS_LABELS[activeTab]}&quot; အခြေအနေရှိ ခိုလှုံရာအိမ် မရှိပါ
                   </p>
                 )}
               </div>
@@ -259,18 +282,18 @@ export default function AdminHostels() {
                             "bg-gray-100 text-gray-600"
                           }`}
                         >
-                          {hostel.verification?.status?.replace("_", " ") || "unknown"}
+                          {STATUS_LABELS[hostel.verification?.status] || "မသိ"}
                         </span>
                         {hostel.verification?.autoCheckPassed && (
                           <span className="text-xs text-green-600 font-medium">
-                            AI Verified
+                            AI အတည်ပြုပြီး
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-3">
                       <p className="text-xs text-gray-400">
-                        Submitted: {formatDate(hostel.createdAt)}
+                        တင်သွင်းသည့်ရက်: {formatDate(hostel.createdAt)}
                       </p>
                       {selectedHostel?._id !== hostel._id && (
                         <>
@@ -283,7 +306,7 @@ export default function AdminHostels() {
                               disabled={actionLoading !== null}
                               className="text-xs text-green-600 hover:text-green-800 font-medium px-2 py-1 rounded hover:bg-green-50 transition disabled:opacity-50"
                             >
-                              Approve
+                              အတည်ပြုရန်
                             </button>
                           )}
                           {activeTab === "auto_rejected" && (
@@ -295,7 +318,7 @@ export default function AdminHostels() {
                               disabled={actionLoading !== null}
                               className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition disabled:opacity-50"
                             >
-                              Reject
+                              ငြင်းပယ်ရန်
                             </button>
                           )}
                           {activeTab === "rejected" && (
@@ -307,7 +330,7 @@ export default function AdminHostels() {
                               disabled={actionLoading !== null}
                               className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded hover:bg-red-50 transition disabled:opacity-50"
                             >
-                              Delete
+                              ဖျက်ရန်
                             </button>
                           )}
                         </>
@@ -348,7 +371,7 @@ export default function AdminHostels() {
                           "bg-gray-100 text-gray-600"
                         }`}
                       >
-                        {selectedHostel.verification?.status?.replace("_", " ")}
+                        {STATUS_LABELS[selectedHostel.verification?.status] || "မသိ"}
                       </span>
                     </div>
 
@@ -356,7 +379,7 @@ export default function AdminHostels() {
                     <div className="p-5 space-y-4">
                       <div>
                         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-                          Address
+                          လိပ်စာ
                         </p>
                         <p className="text-sm text-gray-700 mt-0.5">
                           {selectedHostel.address}, {selectedHostel.city}
@@ -364,15 +387,15 @@ export default function AdminHostels() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-                          Email
+                          အီးမေးလ်
                         </p>
                         <p className="text-sm text-gray-700 mt-0.5">
-                          {selectedHostel.email || "N/A"}
+                          {selectedHostel.email || "မရှိ"}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-                          Phone
+                          ဖုန်းနံပါတ်
                         </p>
                         <p className="text-sm text-gray-700 mt-0.5">
                           {selectedHostel.phone}
@@ -380,7 +403,7 @@ export default function AdminHostels() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-                          Submitted
+                          တင်သွင်းသည့်ရက်
                         </p>
                         <p className="text-sm text-gray-700 mt-0.5">
                           {formatDate(selectedHostel.createdAt)}
@@ -388,14 +411,14 @@ export default function AdminHostels() {
                       </div>
 
                       {/* Certificate Image */}
-                      {selectedHostel.licenseImage && (
+                      {selectedHostel.licenseImageUrl && (
                         <div>
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">
-                            Certificate Image
+                            လက်မှတ် ပုံ
                           </p>
                           <img
-                            src={selectedHostel.licenseImage}
-                            alt="Hostel Certificate"
+                            src={selectedHostel.licenseImageUrl}
+                            alt="ခိုလှုံရာအိမ် လက်မှတ်"
                             className="w-full rounded-lg border border-gray-200"
                           />
                         </div>
@@ -405,7 +428,7 @@ export default function AdminHostels() {
                       {selectedHostel.verification?.visionAnalysis && (
                         <div>
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">
-                            AI Analysis
+                            AI ခွဲခြမ်းစိတ်ဖြာမှု
                           </p>
                           <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-3">
                             {/* Verdict & Score */}
@@ -418,11 +441,11 @@ export default function AdminHostels() {
                                 }`}
                               >
                                 {selectedHostel.verification.autoCheckPassed
-                                  ? "Looks Legitimate"
-                                  : "Not Verified"}
+                                  ? "တရားဝင် ဖြစ်နိုင်သည်"
+                                  : "အတည်မပြုနိုင်ပါ"}
                               </span>
                               <span className="text-xs text-gray-400">
-                                Score: {selectedHostel.verification.visionAnalysis.score || 0}
+                                အမှတ်: {selectedHostel.verification.visionAnalysis.score || 0}
                                 {selectedHostel.verification.visionAnalysis.confidence
                                   ? ` | OCR: ${selectedHostel.verification.visionAnalysis.confidence}%`
                                   : ""}
@@ -433,27 +456,27 @@ export default function AdminHostels() {
                             {selectedHostel.verification.visionAnalysis.extractedFields && (
                               <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
                                 <div className="flex justify-between px-3 py-2">
-                                  <span className="text-gray-500 text-xs">Registration No.</span>
+                                  <span className="text-gray-500 text-xs">မှတ်ပုံတင်နံပါတ်</span>
                                   <span className="text-gray-900 text-xs font-medium">
-                                    {selectedHostel.verification.visionAnalysis.extractedFields.registrationNo || "Not found"}
+                                    {selectedHostel.verification.visionAnalysis.extractedFields.registrationNo || "မတွေ့ပါ"}
                                   </span>
                                 </div>
                                 <div className="flex justify-between px-3 py-2">
-                                  <span className="text-gray-500 text-xs">Issue Date</span>
+                                  <span className="text-gray-500 text-xs">ထုတ်ပေးသည့်ရက်</span>
                                   <span className="text-gray-900 text-xs font-medium">
-                                    {selectedHostel.verification.visionAnalysis.extractedFields.issueDate || "Not found"}
+                                    {selectedHostel.verification.visionAnalysis.extractedFields.issueDate || "မတွေ့ပါ"}
                                   </span>
                                 </div>
                                 <div className="flex justify-between px-3 py-2">
-                                  <span className="text-gray-500 text-xs">Expiry Date</span>
+                                  <span className="text-gray-500 text-xs">သက်တမ်းကုန်ဆုံးရက်</span>
                                   <span className="text-gray-900 text-xs font-medium">
-                                    {selectedHostel.verification.visionAnalysis.extractedFields.expiryDate || "Not found"}
+                                    {selectedHostel.verification.visionAnalysis.extractedFields.expiryDate || "မတွေ့ပါ"}
                                   </span>
                                 </div>
                                 <div className="flex justify-between px-3 py-2">
-                                  <span className="text-gray-500 text-xs">Authorized By</span>
+                                  <span className="text-gray-500 text-xs">ခွင့်ပြုသူ</span>
                                   <span className="text-gray-900 text-xs font-medium text-right max-w-[200px]">
-                                    {selectedHostel.verification.visionAnalysis.extractedFields.authorizedBy || "Not found"}
+                                    {selectedHostel.verification.visionAnalysis.extractedFields.authorizedBy || "မတွေ့ပါ"}
                                   </span>
                                 </div>
                               </div>
@@ -464,7 +487,7 @@ export default function AdminHostels() {
                               <div className="space-y-2">
                                 {selectedHostel.verification.visionAnalysis.details.primaryMatches?.length > 0 && (
                                   <div>
-                                    <span className="text-gray-500 text-xs block mb-1">Certificate Keywords</span>
+                                    <span className="text-gray-500 text-xs block mb-1">လက်မှတ် အဓိကစကားလုံးများ</span>
                                     <div className="flex flex-wrap gap-1">
                                       {selectedHostel.verification.visionAnalysis.details.primaryMatches.map((kw) => (
                                         <span key={kw} className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded">{kw}</span>
@@ -474,7 +497,7 @@ export default function AdminHostels() {
                                 )}
                                 {selectedHostel.verification.visionAnalysis.details.authorityMatches?.length > 0 && (
                                   <div>
-                                    <span className="text-gray-500 text-xs block mb-1">Authority Keywords</span>
+                                    <span className="text-gray-500 text-xs block mb-1">အာဏာပိုင် အဓိကစကားလုံးများ</span>
                                     <div className="flex flex-wrap gap-1">
                                       {selectedHostel.verification.visionAnalysis.details.authorityMatches.map((kw) => (
                                         <span key={kw} className="bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded">{kw}</span>
@@ -484,7 +507,7 @@ export default function AdminHostels() {
                                 )}
                                 {selectedHostel.verification.visionAnalysis.details.domainMatches?.length > 0 && (
                                   <div>
-                                    <span className="text-gray-500 text-xs block mb-1">Domain Keywords</span>
+                                    <span className="text-gray-500 text-xs block mb-1">နယ်ပယ် အဓိကစကားလုံးများ</span>
                                     <div className="flex flex-wrap gap-1">
                                       {selectedHostel.verification.visionAnalysis.details.domainMatches.map((kw) => (
                                         <span key={kw} className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded">{kw}</span>
@@ -494,7 +517,7 @@ export default function AdminHostels() {
                                 )}
                                 {selectedHostel.verification.visionAnalysis.details.documentMatches?.length > 0 && (
                                   <div>
-                                    <span className="text-gray-500 text-xs block mb-1">Document Keywords</span>
+                                    <span className="text-gray-500 text-xs block mb-1">စာရွက်စာတမ်း အဓိကစကားလုံးများ</span>
                                     <div className="flex flex-wrap gap-1">
                                       {selectedHostel.verification.visionAnalysis.details.documentMatches.map((kw) => (
                                         <span key={kw} className="bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded">{kw}</span>
@@ -508,7 +531,7 @@ export default function AdminHostels() {
                             {selectedHostel.verification.visionAnalysis.error && (
                               <div>
                                 <span className="text-red-500 text-xs">
-                                  Error: {selectedHostel.verification.visionAnalysis.error}
+                                  အမှား: {selectedHostel.verification.visionAnalysis.error}
                                 </span>
                               </div>
                             )}
@@ -520,11 +543,19 @@ export default function AdminHostels() {
                       {selectedHostel.verification?.reviewedAt && (
                         <div>
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">
-                            Review Details
+                            စစ်ဆေးမှု အသေးစိတ်
                           </p>
                           <p className="text-sm text-gray-700">
-                            Reviewed: {formatDate(selectedHostel.verification.reviewedAt)}
+                            စစ်ဆေးသည့်ရက်: {formatDate(selectedHostel.verification.reviewedAt)}
                           </p>
+                          {selectedHostel.verification.reviewedBy && (
+                            <p className="text-sm text-gray-700 mt-1">
+                              စစ်ဆေးသူ: {selectedHostel.verification.reviewedBy.name}{" "}
+                              <span className="text-gray-400 text-xs">
+                                ({selectedHostel.verification.reviewedBy.role === "super_admin" ? "Super Admin" : "Admin"})
+                              </span>
+                            </p>
+                          )}
                           {selectedHostel.verification.reviewNote && (
                             <p className="text-sm text-gray-600 mt-1 italic">
                               &quot;{selectedHostel.verification.reviewNote}&quot;
@@ -538,12 +569,12 @@ export default function AdminHostels() {
                         selectedHostel.verification?.status === "auto_rejected") && (
                         <div className="border-t border-gray-100 pt-4">
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">
-                            Admin Actions
+                            စီမံခန့်ခွဲသူ လုပ်ဆောင်ချက်များ
                           </p>
                           <textarea
                             value={reviewNote}
                             onChange={(e) => setReviewNote(e.target.value)}
-                            placeholder="Add a review note (optional)..."
+                            placeholder="စစ်ဆေးမှု မှတ်ချက် ထည့်ရန် (ရွေးချယ်ခွင့်)..."
                             className="w-full p-3 border border-gray-300 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                             rows={2}
                           />
@@ -556,8 +587,8 @@ export default function AdminHostels() {
                               className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white py-2.5 rounded-lg text-sm font-semibold transition"
                             >
                               {actionLoading === "approve"
-                                ? "Approving..."
-                                : "Approve"}
+                                ? "အတည်ပြုနေသည်..."
+                                : "အတည်ပြုရန်"}
                             </button>
                             <button
                               onClick={() =>
@@ -567,8 +598,8 @@ export default function AdminHostels() {
                               className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white py-2.5 rounded-lg text-sm font-semibold transition"
                             >
                               {actionLoading === "reject"
-                                ? "Rejecting..."
-                                : "Reject"}
+                                ? "ငြင်းပယ်နေသည်..."
+                                : "ငြင်းပယ်ရန်"}
                             </button>
                           </div>
                         </div>
@@ -578,7 +609,7 @@ export default function AdminHostels() {
                       {selectedHostel.verification?.status === "rejected" && (
                         <div className="border-t border-gray-100 pt-4">
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">
-                            Admin Actions
+                            စီမံခန့်ခွဲသူ လုပ်ဆောင်ချက်များ
                           </p>
                           <button
                             onClick={() => handleDelete(selectedHostel._id)}
@@ -586,11 +617,11 @@ export default function AdminHostels() {
                             className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white py-2.5 rounded-lg text-sm font-semibold transition"
                           >
                             {actionLoading === "delete"
-                              ? "Deleting..."
-                              : "Delete Permanently"}
+                              ? "ဖျက်နေသည်..."
+                              : "အပြီးတိုင် ဖျက်ပစ်ရန်"}
                           </button>
                           <p className="text-xs text-gray-400 mt-2 text-center">
-                            This will permanently remove this hostel from the database.
+                            ဤလုပ်ဆောင်ချက်သည် ခိုလှုံရာအိမ်ကို ဒေတာဘေ့စ်မှ အပြီးတိုင် ဖယ်ရှားပါမည်။
                           </p>
                         </div>
                       )}
