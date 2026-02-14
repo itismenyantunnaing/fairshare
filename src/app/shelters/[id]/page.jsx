@@ -8,6 +8,8 @@ export default function PublicShelterPage({ params }) {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
   const [shelter, setShelter] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [reliabilityScore, setReliabilityScore] = useState({ given: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -29,17 +31,28 @@ export default function PublicShelterPage({ params }) {
     checkAuth();
   }, [router]);
 
-  // Fetch shelter only after auth is confirmed
+  // Fetch shelter and activities only after auth is confirmed
   useEffect(() => {
     if (!authChecked) return;
-    const fetchShelter = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(`/api/shelters/${id}`);
-        const data = await res.json();
-        if (data.success) {
-          setShelter(data.shelter);
+        // Fetch shelter info
+        const shelterRes = await fetch(`/api/shelters/${id}`);
+        const shelterData = await shelterRes.json();
+        if (shelterData.success) {
+          setShelter(shelterData.shelter);
         } else {
-          setError(data.error);
+          setError(shelterData.error);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch activities
+        const activitiesRes = await fetch(`/api/shelters/${id}/activities`);
+        const activitiesData = await activitiesRes.json();
+        if (activitiesData.success) {
+          setActivities(activitiesData.activities);
+          setReliabilityScore(activitiesData.reliabilityScore);
         }
       } catch (err) {
         setError("ခိုလှုံရာအိမ် အချက်အလက် ခေါ်ယူ၍ မရပါ။");
@@ -47,8 +60,17 @@ export default function PublicShelterPage({ params }) {
         setLoading(false);
       }
     };
-    fetchShelter();
+    fetchData();
   }, [id, authChecked]);
+
+  const formatDate = (date) => {
+    if (!date) return "";
+    return new Date(date).toLocaleDateString("my-MM", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   // Get initials from shelter name
   const getInitials = (name) => {
@@ -110,38 +132,48 @@ export default function PublicShelterPage({ params }) {
         </Link>
 
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            {hasProfileImage ? (
-              <img
-                src={shelter.profileImages[0]}
-                alt={shelter.hostelName}
-                className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">{getInitials(shelter.hostelName)}</span>
-              </div>
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-gray-900">{shelter.hostelName}</h1>
-              {/* Verified Badge */}
-              <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                အတည်ပြုပြီး
-              </span>
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              {hasProfileImage ? (
+                <img
+                  src={shelter.profileImages[0]}
+                  alt={shelter.hostelName}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">{getInitials(shelter.hostelName)}</span>
+                </div>
+              )}
             </div>
-            <p className="text-gray-500 flex items-center gap-1 mt-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {shelter.city}
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900">{shelter.hostelName}</h1>
+                {/* Verified Badge */}
+                <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  အတည်ပြုပြီး
+                </span>
+              </div>
+              <p className="text-gray-500 flex items-center gap-1 mt-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {shelter.city}
+              </p>
+            </div>
+          </div>
+
+          {/* Reliability Score */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 text-center flex-shrink-0">
+            <p className="text-xs text-gray-500 mb-1">ယုံကြည်စိတ်ချရမှု</p>
+            <p className="text-xl font-bold text-blue-600">
+              {reliabilityScore.given} / {reliabilityScore.total || reliabilityScore.given || 0}
             </p>
           </div>
         </div>
@@ -192,6 +224,58 @@ export default function PublicShelterPage({ params }) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Activities Section */}
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">လှုပ်ရှားမှုများ</h2>
+          {activities.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+              <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <p className="text-gray-500 text-sm">မှတ်တမ်းတင်ထားသော လှုပ်ရှားမှု မရှိသေးပါ</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {activities.slice(0, 5).map((activity) => (
+                <Link
+                  key={activity._id}
+                  href={`/activities/${activity._id}`}
+                  className="block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:border-blue-200 hover:shadow-md transition"
+                >
+                  <div className="flex">
+                    {/* Thumbnail */}
+                    {activity.images?.[0] && (
+                      <div className="w-32 h-24 flex-shrink-0">
+                        <img
+                          src={activity.images[0]}
+                          alt={activity.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="p-4 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                          {activity.distributionName}
+                        </span>
+                        <span className="text-xs text-gray-400">{formatDate(activity.createdAt)}</span>
+                      </div>
+                      <h3 className="font-medium text-gray-900 truncate">{activity.title}</h3>
+                      <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{activity.description}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+
+              {activities.length > 5 && (
+                <p className="text-center text-sm text-gray-400">
+                  နောက်ထပ် လှုပ်ရှားမှု {activities.length - 5} ခု ရှိပါသေးသည်
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

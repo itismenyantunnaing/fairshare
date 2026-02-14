@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { uploadImage } from "@/lib/supabase";
 
 const STATUS_BADGE = {
@@ -342,6 +343,29 @@ export default function ShelterProfile({ params }) {
             </button>
           )}
         </div>
+
+        {/* Activities Link Card */}
+        <Link
+          href={`/shelter/${id}/activities`}
+          className="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 hover:border-blue-200 hover:shadow-md transition group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600">လှုပ်ရှားမှုများ</p>
+                <p className="text-xs text-gray-400">ဖြန့်ဝေမှု တုံ့ပြန်ချက်များ ကြည့်ရန်</p>
+              </div>
+            </div>
+            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
 
         {/* Admin viewing banner */}
         {!isOwner && (
