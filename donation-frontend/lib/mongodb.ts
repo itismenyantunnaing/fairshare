@@ -31,6 +31,6 @@ function ensureClientInitialized() {
 
 export async function getDb(dbName?: string) {
   const c = await ensureClientInitialized();
-  const name = dbName || process.env.MONGODB_DB || "fairshare";
+  const name = dbName || process.env.MONGODB_DB || "FairShare";
   return c.db(name);
 }

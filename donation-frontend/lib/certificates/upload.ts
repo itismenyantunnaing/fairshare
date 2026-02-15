@@ -14,7 +14,7 @@ export async function uploadPdfToCloudinary(pdfBytes: Uint8Array, certificateNo:
   // Use upload API with resource_type raw
   const res = await cloudinary.uploader.upload(dataUri, {
     resource_type: "raw",
-    folder: "fairshare/certificates",
+    folder: "FairShare/certificates",
     public_id: certificateNo, // nice stable name
     overwrite: true,
   });

@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { isAdminEmail } from "@/lib/admin";
 
 const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB || "fairshare";
+const dbName = process.env.MONGODB_DB || "FairShare";
 
 let clientPromise: Promise<MongoClient> | null = null;
 

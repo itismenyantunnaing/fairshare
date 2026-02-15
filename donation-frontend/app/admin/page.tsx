@@ -15,12 +15,22 @@ function CardButton({
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-3xl border bg-white p-6 text-left shadow-sm transition hover:bg-gray-50"
+      className="w-full rounded-3xl border bg-white p-6 text-left shadow-sm transition hover:shadow-md hover:scale-[1.01]"
     >
-      <div className="text-lg font-semibold text-gray-900">{title}</div>
-      <div className="mt-1 text-sm text-gray-600">{desc}</div>
-      <div className="mt-4 inline-flex rounded-xl bg-black px-4 py-2 text-xs font-semibold text-white">
-        Open
+      <div className="flex items-start gap-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-700">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12h18" />
+            <path d="M3 6h18M3 18h18" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <div className="text-lg font-semibold text-gray-900">{title}</div>
+          <div className="mt-1 text-sm text-gray-600">{desc}</div>
+        </div>
+        <div className="mt-1 inline-flex items-center rounded-xl bg-black px-4 py-2 text-xs font-semibold text-white">
+          Open
+        </div>
       </div>
     </button>
   );

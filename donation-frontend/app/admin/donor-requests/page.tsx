@@ -30,8 +30,18 @@ function TypeBadge({ type }: { type: string }) {
       : type === "clothing"
       ? "Clothing"
       : "Donation";
+
+  const bgClass =
+    type === "foodsupport"
+      ? "bg-amber-100 text-amber-800"
+      : type === "medicalaid"
+      ? "bg-rose-100 text-rose-800"
+      : type === "clothing"
+      ? "bg-indigo-100 text-indigo-800"
+      : "bg-emerald-100 text-emerald-800";
+
   return (
-    <span className="inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium text-gray-700">
+    <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${bgClass}`}>
       {label}
     </span>
   );
@@ -353,8 +363,8 @@ export default function AdminDashboardPage() {
         <div className="rounded-3xl border bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-  <tr>
+              <thead className="border-b text-xs uppercase tracking-wide text-gray-500">
+  <tr className="bg-gray-50 sticky top-0">
     <th className="px-4 py-3">Email</th>
     <th className="px-4 py-3">Type</th>
     <th className="px-4 py-3">Amount</th>
@@ -372,29 +382,29 @@ export default function AdminDashboardPage() {
               <tbody className="divide-y">
                 {rows.map((row: any) => (
                   <tr key={row.id || row._id} className="hover:bg-gray-50">
-  <td className="px-4 py-3">{renderEmail(row)}</td>
+  <td className="px-4 py-2">{renderEmail(row)}</td>
 
-  <td className="px-4 py-3">
+  <td className="px-4 py-2">
     <TypeBadge type={row.type} />
   </td>
 
-  <td className="px-4 py-3">{renderAmount(row)}</td>
-  <td className="px-4 py-3">{renderCurrency(row)}</td>
-  <td className="px-4 py-3">{renderPayment(row)}</td>
-  <td className="px-4 py-3">{row.region ?? "-"}</td>
+  <td className="px-4 py-2">{renderAmount(row)}</td>
+  <td className="px-4 py-2">{renderCurrency(row)}</td>
+  <td className="px-4 py-2">{renderPayment(row)}</td>
+  <td className="px-4 py-2">{row.region ?? "-"}</td>
 
-  <td className="px-4 py-3">{renderItemsCell(row)}</td>
-  <td className="px-4 py-3">{renderMessageCell(row)}</td>
+  <td className="px-4 py-2">{renderItemsCell(row)}</td>
+  <td className="px-4 py-2">{renderMessageCell(row)}</td>
 
-  <td className="px-4 py-3">{formatDate(row.createdAt || row.timestamp)}</td>
+  <td className="px-4 py-2">{formatDate(row.createdAt || row.timestamp)}</td>
 
   {tab === "pending" ? (
-  <td className="px-4 py-3">
+  <td className="px-4 py-2">
     <div className="flex gap-2">
       <button
         onClick={() => approveItem(row.type, row.id)}
         disabled={loading}
-        className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        className="rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
       >
         Approve
       </button>
@@ -402,7 +412,7 @@ export default function AdminDashboardPage() {
       <button
         onClick={() => declineItem(row.type, row.id)}
         disabled={loading}
-        className="rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+        className="rounded-xl bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
       >
         Decline
       </button>

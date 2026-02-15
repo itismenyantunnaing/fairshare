@@ -67,19 +67,24 @@ export default function AdminLoginPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="mx-auto flex min-h-screen max-w-lg items-center px-4 py-10">
-        <div className="w-full rounded-3xl border bg-white p-8 shadow-sm">
+        <div className="w-full rounded-3xl border bg-white p-8 shadow-md">
           <div className="mb-6">
-            <p className="text-sm text-gray-500">Admin access</p>
-            <h1 className="text-2xl font-semibold text-gray-900">Sign in</h1>
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-black text-white flex items-center justify-center font-semibold">A</div>
+              <div>
+                <p className="text-sm text-gray-500">Admin access</p>
+                <h1 className="text-2xl font-semibold text-gray-900">Sign in</h1>
+              </div>
+            </div>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <label className="block text-sm font-medium text-gray-700">
               Email
               <input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
                 placeholder="admin@example.com"
                 required
               />
@@ -90,7 +95,7 @@ export default function AdminLoginPage() {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
                 placeholder="••••••••"
                 required
               />
@@ -99,13 +104,13 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full rounded-xl bg-black px-4 py-3 text-sm font-medium text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
           <p className="mt-6 text-xs text-gray-500">
-            This login uses the existing donor authentication flow and session cookie.
+            Uses the donor authentication flow. Ask an existing admin to add your email to ADMIN_EMAILS.
           </p>
         </div>
       </div>

@@ -16,6 +16,13 @@ export default async function DonorDetail({ params }: Props) {
       );
     }
 
+    // Fetch certificates for this donor
+    const certificates = await db
+      .collection('certificates')
+      .find({ donorEmail: donor.email })
+      .sort({ issuedAt: -1 })
+      .toArray();
+
     const profilePhoto = donor.profilePhoto || '/default-avatar.svg';
 
     return (
@@ -49,10 +56,33 @@ export default async function DonorDetail({ params }: Props) {
 
           <div className="p-6 border-t">
             <h2 className="text-lg font-medium mb-3">Certificates</h2>
-            <div className="rounded border-dashed border-2 border-gray-200 p-6 text-center text-sm text-gray-600">
-              <div className="mb-2">No certificates available yet.</div>
-              <div className="text-xs text-gray-500">Certificates are issued/approved by the admin and will appear here when available.</div>
-            </div>
+            {certificates.length === 0 ? (
+              <div className="rounded border-dashed border-2 border-gray-200 p-6 text-center text-sm text-gray-600">
+                <div className="mb-2">No certificates available yet.</div>
+                <div className="text-xs text-gray-500">Certificates are issued/approved by the admin and will appear here when available.</div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {certificates.map((cert: any) => (
+                  <div key={String(cert._id)} className="rounded border border-gray-200 p-4 flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{cert.certificateNo}</div>
+                      <div className="text-xs text-gray-600">
+                        {cert.type} • Issued {new Date(cert.issuedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <a
+                      href={cert.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded bg-black text-white px-4 py-2 text-sm font-medium hover:bg-gray-800"
+                    >
+                      View PDF
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>

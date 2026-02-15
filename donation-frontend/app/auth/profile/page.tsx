@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<{ id?: string; name?: string; email?: string; profilePhoto?: string } | null>(null);
+  const [certificates, setCertificates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [certLoading, setCertLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -20,10 +22,22 @@ export default function ProfilePage() {
         }
         if (!mounted) return;
         setProfile(json.profile);
+
+        // Fetch certificates
+        setCertLoading(true);
+        const certRes = await fetch('/api/profile/certificates');
+        const certJson = await certRes.json();
+        if (certJson?.ok && Array.isArray(certJson.certificates)) {
+          setCertificates(certJson.certificates);
+        }
       } catch (e) {
+        console.error('Profile load error:', e);
         router.push('/auth/login');
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setCertLoading(false);
+        }
       }
     }
     load();
@@ -65,10 +79,35 @@ export default function ProfilePage() {
 
         <div className="p-6 border-t">
           <h2 className="text-lg font-medium mb-3">Certificates</h2>
-          <div className="rounded border-dashed border-2 border-gray-200 p-6 text-center text-sm text-gray-600">
-            <div className="mb-2">No certificates available yet.</div>
-            <div className="text-xs text-gray-500">Certificates are issued/approved by the admin and will appear here when available.</div>
-          </div>
+          {certLoading ? (
+            <div className="text-sm text-gray-600">Loading certificates…</div>
+          ) : certificates.length === 0 ? (
+            <div className="rounded border-dashed border-2 border-gray-200 p-6 text-center text-sm text-gray-600">
+              <div className="mb-2">No certificates available yet.</div>
+              <div className="text-xs text-gray-500">Certificates are issued/approved by the admin and will appear here when available.</div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {certificates.map((cert: any) => (
+                <div key={cert.id || cert._id} className="rounded border border-gray-200 p-4 flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{cert.certificateNo}</div>
+                    <div className="text-xs text-gray-600">
+                      {cert.type} • Issued {new Date(cert.issuedAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <a
+                    href={cert.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded bg-black text-white px-4 py-2 text-sm font-medium hover:bg-gray-800"
+                  >
+                    View PDF
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </main>

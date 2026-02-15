@@ -45,35 +45,83 @@ export default function AuthNav() {
     }
 
     return (
-        <nav className="flex gap-4 text-sm text-gray-600 items-center">
-            <a className="hover:text-gray-900" href="#causes">Causes</a>
-            <a className="hover:text-gray-900" href="#how">How it works</a>
-            <a className="hover:text-gray-900" href="/donate">Donate</a>
-            <a className="text-sm text-gray-600 hover:text-gray-900" href="/donors">Donors</a>
+        <nav className="flex gap-1 items-center">
+            <a 
+                className="px-4 py-2 text-sm font-medium text-white hover:text-emerald-100 hover:bg-white/10 rounded-lg transition-all" 
+                href="/donate"
+            >
+                Donate
+            </a>
+            <a 
+                className="px-4 py-2 text-sm font-medium text-white hover:text-emerald-100 hover:bg-white/10 rounded-lg transition-all" 
+                href="#causes"
+            >
+                Causes
+            </a>
+            <a 
+                className="px-4 py-2 text-sm font-medium text-white hover:text-emerald-100 hover:bg-white/10 rounded-lg transition-all" 
+                href="#how"
+            >
+                How it works
+            </a>
+            
+            <a 
+                className="px-4 py-2 text-sm font-medium text-white hover:text-emerald-100 hover:bg-white/10 rounded-lg transition-all" 
+                href="/donors"
+            >
+                Donors
+            </a>
 
-
-            <div className="ml-4 h-6 border-l border-gray-200" />
+            <div className="ml-2 h-6 border-l border-white/30" />
 
             {profile ? (
                 <div className="flex items-center gap-3" ref={ref}>
-                    <button onClick={() => setOpen(v => !v)} className="flex items-center gap-2">
-                        <img src={profile.profilePhoto || '/default-avatar.svg'} alt="avatar" className="w-7 h-7 rounded-full object-cover" />
-                        <span className="text-sm text-gray-800">{profile.name ?? profile.email}</span>
+                    <button 
+                        onClick={() => setOpen(v => !v)} 
+                        className="flex items-center gap-2 px-2 py-1 hover:bg-white/10 rounded-lg transition-all"
+                    >
+                        <img 
+                            src={profile.profilePhoto || '/default-avatar.svg'} 
+                            alt="avatar" 
+                            className="w-8 h-8 rounded-full object-cover border-2 border-white" 
+                        />
+                        <span className="text-sm font-medium text-white">{profile.name ?? profile.email}</span>
                     </button>
 
                     {open && (
-                        <div className="absolute right-4 mt-12 w-44 bg-white border rounded shadow-sm py-1">
-                            <a href="/auth/profile" className="block px-3 py-2 text-sm hover:bg-gray-50">View profile</a>
-                            <button onClick={logout} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">Logout</button>
+                        <div className="absolute right-4 mt-12 w-48 bg-white border border-gray-100 rounded-xl shadow-lg shadow-gray-200/50 py-2 overflow-hidden">
+                            <a 
+                                href="/auth/profile" 
+                                className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 font-medium"
+                            >
+                                View profile
+                            </a>
+                            <button 
+                                onClick={logout} 
+                                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 font-medium"
+                            >
+                                Logout
+                            </button>
                         </div>
                     )}
                 </div>
             ) : (
-                <div className="flex items-center gap-3">
-                    <a className="hover:text-gray-900" href="/auth/login">Login</a>
-                    <a className="rounded-lg border border-gray-300 px-3 py-1 hover:bg-gray-50" href="/auth/signup">Sign up</a>
+                <div className="flex items-center gap-2 ml-2">
+                    <a 
+                        className="px-4 py-2 text-sm font-medium text-white hover:text-emerald-100 hover:bg-white/10 rounded-lg transition-all" 
+                        href="/auth/login"
+                    >
+                        Login
+                    </a>
+                    <a 
+                        className="px-4 py-2 text-sm font-medium text-emerald-600 bg-white rounded-lg shadow-md transition-all hover:scale-105" 
+                        href="/auth/signup"
+                    >
+                        Sign up
+                    </a>
                 </div>
             )}
         </nav>
     );
 }
+
