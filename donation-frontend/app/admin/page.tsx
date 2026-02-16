@@ -46,7 +46,8 @@ export default function AdminHomePage() {
       try {
         const res = await fetch("/api/auth/session", { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
-        if (!data?.ok) {
+        // require admin users only
+        if (!data?.ok || !data?.isAdmin) {
           router.replace("/admin/login");
           return;
         }

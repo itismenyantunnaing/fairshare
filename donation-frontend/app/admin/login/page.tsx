@@ -10,14 +10,23 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     const checkSession = async () => {
       try {
         const res = await fetch("/api/auth/session");
         const data = await res.json();
-        if (data?.ok) {
+        // if signed in as admin, go to admin dashboard
+        if (data?.ok && data?.isAdmin) {
           router.replace("/admin");
+          return;
+        }
+        // if signed in but not an admin, block the login page and require logout
+        if (data?.ok && !data?.isAdmin) {
+          setIsLoggedIn(true);
+          setProfile(data.profile || null);
           return;
         }
       } catch (err) {
@@ -28,6 +37,31 @@ export default function AdminLoginPage() {
     };
     checkSession();
   }, [router]);
+
+  const handleLogoutCurrent = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data?.ok) {
+        // Clear local state and re-check session to allow admin login
+        setIsLoggedIn(false);
+        setProfile(null);
+        // re-check session
+        setCheckingSession(true);
+        const r = await fetch('/api/auth/session');
+        await r.json();
+      } else {
+        setError('Logout failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Logout failed', err);
+      setError('Logout failed. Please try again.');
+    } finally {
+      setLoading(false);
+      setCheckingSession(false);
+    }
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -63,7 +97,34 @@ export default function AdminLoginPage() {
       </main>
     );
   }
-
+  if (isLoggedIn) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="relative mx-auto max-w-lg px-4">
+          <div className="rounded-3xl border bg-white p-8 shadow-md">
+            <h2 className="text-lg font-semibold text-gray-900">Access restricted</h2>
+            <p className="mt-3 text-sm text-gray-600">You are currently signed in{profile?.email ? ` as ${profile.email}` : ''}. Please log out of the current account before accessing the admin login page.</p>
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                onClick={handleLogoutCurrent}
+                disabled={loading}
+                className="rounded-xl bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-70"
+              >
+                {loading ? 'Logging out...' : 'Logout current account'}
+              </button>
+              <button
+                onClick={() => router.push('/')}
+                className="rounded-xl border px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Go to site
+              </button>
+            </div>
+            {error ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div> : null}
+          </div>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="mx-auto flex min-h-screen max-w-lg items-center px-4 py-10">
