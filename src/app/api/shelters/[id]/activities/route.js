@@ -48,9 +48,27 @@ export async function GET(req, { params }) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Calculate reliability score
-    const totalDistributions = activities.length; // For now, each activity = 1 distribution feedback
-    const feedbackGiven = activities.length;
+    // Reliability: total = all distributions this shelter is involved in, given = activities posted for those
+    const shelterObjId = new ObjectId(id);
+    const allDistributionsWithShelter = await db
+      .collection("distributions")
+      .find({ "allocations.shelterId": shelterObjId })
+      .project({ _id: 1 })
+      .toArray();
+
+    const distIds = allDistributionsWithShelter.map((d) => d._id);
+    const totalDistributions = distIds.length;
+
+    const activitiesWithDist = await db
+      .collection("activities")
+      .find({
+        shelterId: shelterObjId,
+        distributionId: { $in: distIds },
+      })
+      .project({ distributionId: 1 })
+      .toArray();
+
+    const feedbackGiven = activitiesWithDist.length;
     const reliabilityScore = {
       given: feedbackGiven,
       total: totalDistributions,
@@ -80,8 +98,8 @@ export async function GET(req, { params }) {
  *   distributionDate: string (ISO date),
  *   title: string,
  *   description: string,
- *   images: string[] (Supabase URLs),
- *   excelFile: string | null (Supabase URL)
+ *   images: string[] (image URLs),
+ *   excelFile: string | null (optional, for backward compatibility; upload not supported)
  * }
  */
 export async function POST(req, { params }) {
@@ -128,13 +146,66 @@ export async function POST(req, { params }) {
     }
 
     const body = await req.json();
-    const { distributionName, distributionDate, title, description, images, excelFile } = body;
+    const { distributionId, distributionName, distributionDate, title, description, images, excelFile } = body;
 
     // Validate required fields
-    if (!distributionName || !title || !description) {
+    if (!distributionId || !title || !description) {
       return NextResponse.json(
-        { success: false, error: "ဖြန့်ဝေမှုအမည်၊ ခေါင်းစဉ်နှင့် ဖော်ပြချက် ထည့်သွင်းရန် လိုအပ်ပါသည်။" },
+        { success: false, error: "ဖြန့်ဝေမှု ရွေးချယ်ခြင်း၊ ခေါင်းစဉ်နှင့် ဖော်ပြချက် ထည့်သွင်းရန် လိုအပ်ပါသည်။" },
         { status: 400 }
+      );
+    }
+
+    if (!ObjectId.isValid(distributionId)) {
+      return NextResponse.json(
+        { success: false, error: "ဖြန့်ဝေမှု ID ပုံစံ မမှန်ကန်ပါ။" },
+        { status: 400 }
+      );
+    }
+
+    const distObjId = new ObjectId(distributionId);
+    const distribution = await db.collection("distributions").findOne({ _id: distObjId });
+    if (!distribution) {
+      return NextResponse.json(
+        { success: false, error: "ဖြန့်ဝေမှု မတွေ့ပါ။" },
+        { status: 404 }
+      );
+    }
+
+    const inAllocations = (distribution.allocations || []).some(
+      (a) => a.shelterId && a.shelterId.toString() === id
+    );
+    if (!inAllocations) {
+      return NextResponse.json(
+        { success: false, error: "သင့်ခိုလှုံရာအိမ်သည် ဤဖြန့်ဝေမှုတွင် ပါဝင်မထားပါ။" },
+        { status: 400 }
+      );
+    }
+
+    const now = new Date();
+    const startDate = new Date(distribution.startDate);
+    const windowEnd = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    if (now < startDate) {
+      return NextResponse.json(
+        { success: false, error: "ဤဖြန့်ဝေမှု စတင်ရက် မတိုင်သေးပါ။ စတင်ရက်မှ ၇ ရက်အတွင်း လှုပ်ရှားမှု တင်ရမည်။" },
+        { status: 400 }
+      );
+    }
+    if (now > windowEnd) {
+      return NextResponse.json(
+        { success: false, error: "ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ရန် ရက်စွဲ ကျော်လွန်ပြီးဖြစ်ပါသည်။ (စတင်ရက်မှ ၇ ရက်အတွင်း တင်ရမည်)" },
+        { status: 400 }
+      );
+    }
+
+    const existingActivity = await db.collection("activities").findOne({
+      shelterId: new ObjectId(id),
+      distributionId: distObjId,
+    });
+    if (existingActivity) {
+      return NextResponse.json(
+        { success: false, error: "ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ပြီးသားဖြစ်ပါသည်။" },
+        { status: 409 }
       );
     }
 
@@ -146,13 +217,15 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Create new activity
+    const distName = distributionName?.trim() || distribution.name || "ဖြန့်ဝေမှု";
+    const distDate = distributionDate ? new Date(distributionDate) : new Date(distribution.startDate);
+
     const newActivity = {
       shelterId: new ObjectId(id),
       shelterName: shelter.hostelName,
-      distributionId: null, // For future distribution linking
-      distributionName: distributionName.trim(),
-      distributionDate: distributionDate ? new Date(distributionDate) : null,
+      distributionId: distObjId,
+      distributionName: distName,
+      distributionDate: distDate,
       title: title.trim(),
       description: description.trim(),
       images: images || [],

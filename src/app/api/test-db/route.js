@@ -6,13 +6,14 @@ export async function GET() {
         const client = await clientPromise;
         const db = client.db("FairShare");
 
-        // Try to fetch the users you imported earlier
-        const users = await db.collection("users").find({}).toArray();
+        // Verify connectivity by listing collections (no dependency on "users")
+        const collections = await db.listCollections().toArray();
+        const names = collections.map((c) => c.name);
 
         return NextResponse.json({
             status: "Connected!",
             database: "FairShare",
-            userCount: users.length
+            collections: names,
         });
     } catch (e) {
         return NextResponse.json({ status: "Error", error: e.message }, { status: 500 });

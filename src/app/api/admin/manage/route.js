@@ -107,6 +107,66 @@ export async function POST(req) {
 }
 
 /**
+ * PATCH /api/admin/manage
+ * Update admin permission (e.g. canManageDistribution). Super admin only.
+ * Body: { adminId, canManageDistribution?: boolean }
+ */
+export async function PATCH(req) {
+  try {
+    const session = await getSession();
+    if (!session || session.role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "ဝင်ရောက်ခွင့် မရှိပါ။" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const { adminId, canManageDistribution } = body;
+
+    if (!adminId || !ObjectId.isValid(adminId)) {
+      return NextResponse.json(
+        { success: false, error: "စီမံခန့်ခွဲသူ ID မမှန်ကန်ပါ။" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof canManageDistribution !== "boolean") {
+      return NextResponse.json(
+        { success: false, error: "canManageDistribution ဖြစ်ရမည်။" },
+        { status: 400 }
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db("FairShare");
+
+    const result = await db.collection("admins").updateOne(
+      { _id: new ObjectId(adminId) },
+      { $set: { canManageDistribution } }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        { success: false, error: "စီမံခန့်ခွဲသူ မတွေ့ပါ။" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "ခွင့်ပြုချက် ပြင်ပြီးပါပြီ။",
+    });
+  } catch (e) {
+    console.error("Error updating admin:", e);
+    return NextResponse.json(
+      { success: false, error: "စီမံခန့်ခွဲသူ ပြင်ခြင်း မအောင်မြင်ပါ။" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * DELETE /api/admin/manage
  * Delete an admin account. Super admin only. Cannot delete yourself.
  *

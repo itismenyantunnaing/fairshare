@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { uploadImage } from "@/lib/supabase";
+import { uploadImageToCloudinary } from "@/lib/uploadClient";
 
 const STATUS_BADGE = {
   pending: {
@@ -34,6 +34,7 @@ export default function ShelterProfile({ params }) {
     address: "",
     city: "",
     phone: "",
+    description: "",
     adults: 0,
     children: 0,
   });
@@ -42,10 +43,13 @@ export default function ShelterProfile({ params }) {
 
   // Auth check — verify logged-in user owns this profile OR is an admin
   useEffect(() => {
+    if (!id) return;
     const checkAuth = async () => {
       try {
         const res = await fetch("/api/auth/me");
-        const data = await res.json();
+        const contentType = res.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+        const data = isJson ? await res.json() : { success: false, user: null };
         if (!data.success || !data.user) {
           router.push("/login");
           return;
@@ -56,7 +60,6 @@ export default function ShelterProfile({ params }) {
         const isOwnerUser = user.role === "shelter" && user.id === id;
 
         if (!isAdminUser && !isOwnerUser) {
-          // Not admin and not owner — redirect
           router.push("/login");
           return;
         }
@@ -64,7 +67,9 @@ export default function ShelterProfile({ params }) {
         setIsOwner(isOwnerUser);
         setAuthChecked(true);
       } catch {
-        router.push("/login");
+        setError("ဆာဗာနှင့် ချိတ်ဆက်၍ မရပါ။ ထပ်မံကြိုးစားပါ သို့မဟုတ် အကောင့်ပြန်ဝင်ပါ။");
+        setAuthChecked(true);
+        setLoading(false);
       }
     };
     checkAuth();
@@ -80,11 +85,13 @@ export default function ShelterProfile({ params }) {
 
   // Fetch profile data (only after auth is confirmed)
   useEffect(() => {
-    if (!authChecked) return;
+    if (!authChecked || !id) return;
     const fetchProfile = async () => {
       try {
         const res = await fetch(`/api/hostels/${id}/profile`);
-        const data = await res.json();
+        const contentType = res.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+        const data = isJson ? await res.json() : { success: false, error: "ဆာဗာမှ တုံ့ပြန်ချက် မမှန်ပါ။" };
         if (data.success) {
           setProfile(data.profile);
           setFormData({
@@ -93,15 +100,16 @@ export default function ShelterProfile({ params }) {
             address: data.profile.address || "",
             city: data.profile.city || "",
             phone: data.profile.phone || "",
-            adults: data.profile.population?.adults || 0,
-            children: data.profile.population?.children || 0,
+            description: data.profile.description ?? "",
+            adults: data.profile.population?.adults ?? 0,
+            children: data.profile.population?.children ?? 0,
           });
           setProfileImages(data.profile.profileImages || []);
         } else {
-          setError(data.error);
+          setError(data.error || "ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။");
         }
       } catch (err) {
-        setError("ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။ ထပ်မံကြိုးစားပါ။");
+        setError("ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။ အင်တာနက်ချိတ်ဆက်မှု စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။");
       } finally {
         setLoading(false);
       }
@@ -160,10 +168,10 @@ export default function ShelterProfile({ params }) {
     setSuccess(null);
 
     try {
-      // Upload new images to Supabase Storage
+      // Upload new images to Cloudinary
       const uploadedUrls = [];
       for (const { file } of newImages) {
-        const result = await uploadImage(file, `profiles/${id}`);
+        const result = await uploadImageToCloudinary(file, `shelter-profiles/${id}`);
         if (result.error) {
           setError(result.error || "ပုံတင်ရာတွင် အမှားဖြစ်ပွားပါသည်။");
           setSaving(false);
@@ -184,6 +192,7 @@ export default function ShelterProfile({ params }) {
           address: formData.address,
           city: formData.city,
           phone: formData.phone,
+          description: formData.description,
           population: {
             adults: formData.adults,
             children: formData.children,
@@ -206,6 +215,7 @@ export default function ShelterProfile({ params }) {
           address: formData.address,
           city: formData.city,
           phone: formData.phone,
+          description: formData.description,
           population: { adults: formData.adults, children: formData.children },
           profileImages: allImages,
         }));
@@ -227,8 +237,9 @@ export default function ShelterProfile({ params }) {
         address: profile.address || "",
         city: profile.city || "",
         phone: profile.phone || "",
-        adults: profile.population?.adults || 0,
-        children: profile.population?.children || 0,
+        description: profile.description ?? "",
+        adults: profile.population?.adults ?? 0,
+        children: profile.population?.children ?? 0,
       });
       setProfileImages(profile.profileImages || []);
       setNewImages([]);
@@ -257,14 +268,16 @@ export default function ShelterProfile({ params }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">ဝင်ရောက်ခွင့် မရှိပါ</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">ပြဿနာ ဖြစ်ပွားပါသည်</h2>
           <p className="text-gray-500 text-sm">{error}</p>
-          <a
-            href="/"
-            className="inline-block mt-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
-          >
-            ပင်မစာမျက်နှာသို့ ပြန်သွားရန်
-          </a>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/login" className="text-sm font-medium text-blue-600 hover:text-blue-800">
+              အကောင့်ပြန်ဝင်ရန်
+            </Link>
+            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-gray-800">
+              ပင်မစာမျက်နှာသို့ ပြန်သွားရန်
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -558,18 +571,39 @@ export default function ShelterProfile({ params }) {
                       />
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      ဖော်ပြချက်
+                    </label>
+                    <textarea
+                      name="description"
+                      rows={4}
+                      value={formData.description}
+                      onChange={handleChange}
+                      placeholder="ခိုလှုံရာအိမ် အကြောင်း အတိုချုပ် ရေးပါ..."
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
+                    />
+                  </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InfoField label="ခိုလှုံရာအိမ် အမည်" value={profile?.hostelName} />
-                  <InfoField label="အီးမေးလ်" value={profile?.email} />
-                  <InfoField label="လိပ်စာ" value={`${profile?.address}, ${profile?.city}`} />
-                  <InfoField label="ဖုန်းနံပါတ်" value={profile?.phone} />
-                </div>
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InfoField label="ခိုလှုံရာအိမ် အမည်" value={profile?.hostelName} />
+                    <InfoField label="အီးမေးလ်" value={profile?.email} />
+                    <InfoField label="လိပ်စာ" value={`${profile?.address}, ${profile?.city}`} />
+                    <InfoField label="ဖုန်းနံပါတ်" value={profile?.phone} />
+                  </div>
+                  {profile?.description && (
+                    <div className="mt-4">
+                      <h4 className="text-xs font-medium text-gray-500 mb-1">ဖော်ပြချက်</h4>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{profile.description}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            {/* Population */}
+            {/* Population (required in profile) */}
             <div className="border-t border-gray-100 pt-5">
               <h3 className="text-sm font-medium text-gray-700 mb-3">လူဦးရေ အချက်အလက်</h3>
               {editMode ? (

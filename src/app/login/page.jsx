@@ -27,7 +27,9 @@ export default function LoginPage() {
       if (data.success) {
         const role = data.role;
         if (role === "super_admin" || role === "admin") {
-          router.push("/admin/hostels");
+          router.push("/admin");
+        } else if (role === "donor") {
+          router.push("/donor");
         } else {
           router.push(`/shelter/${data.id}`);
         }
@@ -49,6 +51,9 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900">အကောင့်ဝင်ရန်</h1>
           <p className="text-gray-500 mt-2 text-sm">
             သင့်အကောင့်သို့ ဝင်ရောက်ပါ
+          </p>
+          <p className="text-gray-400 mt-1 text-xs">
+            အလှူရှင် · ခိုလှုံရာအိမ် · စီမံခန့်ခွဲသူ အားလုံး ဤနေရာတွင် ဝင်ရောက်ပါ။
           </p>
         </div>
 

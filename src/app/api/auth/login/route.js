@@ -17,8 +17,10 @@ export async function POST(req) {
       );
     }
 
+    const emailNormalized = String(email).trim().toLowerCase();
+
     // --- Check admins collection first ---
-    const admin = await db.collection("admins").findOne({ email });
+    const admin = await db.collection("admins").findOne({ email: emailNormalized });
 
     if (admin) {
       const isValid = await verifyPassword(password, admin.password);
@@ -47,8 +49,34 @@ export async function POST(req) {
       return response;
     }
 
+    // --- Check donors collection ---
+    const donor = await db.collection("donors").findOne({ email: emailNormalized });
+    if (donor) {
+      const isValid = await verifyPassword(password, donor.password);
+      if (!isValid) {
+        return NextResponse.json(
+          { success: false, error: "အီးမေးလ် သို့မဟုတ် စကားဝှက် မမှန်ကန်ပါ။" },
+          { status: 401 }
+        );
+      }
+      const token = signToken({
+        id: donor._id.toString(),
+        email: donor.email,
+        name: donor.name,
+        role: "donor",
+      });
+      const response = NextResponse.json({
+        success: true,
+        id: donor._id.toString(),
+        name: donor.name,
+        role: "donor",
+      });
+      response.headers.set("Set-Cookie", createTokenCookie(token));
+      return response;
+    }
+
     // --- Check hostels (shelters) collection ---
-    const shelter = await db.collection("hostels").findOne({ email });
+    const shelter = await db.collection("hostels").findOne({ email: emailNormalized });
 
     if (!shelter) {
       return NextResponse.json(

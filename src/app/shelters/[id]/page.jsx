@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -12,6 +12,7 @@ export default function PublicShelterPage({ params }) {
   const [reliabilityScore, setReliabilityScore] = useState({ given: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasLoadedOnce = useRef(false);
 
   // Auth check - only logged in users can view
   useEffect(() => {
@@ -31,36 +32,50 @@ export default function PublicShelterPage({ params }) {
     checkAuth();
   }, [router]);
 
-  // Fetch shelter and activities only after auth is confirmed
+  const fetchData = async () => {
+    if (!id) return;
+    if (!hasLoadedOnce.current) setLoading(true);
+    try {
+      const shelterRes = await fetch(`/api/shelters/${id}`);
+      const shelterData = await shelterRes.json();
+      if (shelterData.success) {
+        setShelter(shelterData.shelter);
+      } else {
+        setError(shelterData.error);
+        setLoading(false);
+        return;
+      }
+
+      const activitiesRes = await fetch(`/api/shelters/${id}/activities`);
+      const activitiesData = await activitiesRes.json();
+      if (activitiesData.success) {
+        setActivities(activitiesData.activities || []);
+        setReliabilityScore(activitiesData.reliabilityScore || { given: 0, total: 0 });
+      }
+      hasLoadedOnce.current = true;
+    } catch (err) {
+      setError("ခိုလှုံရာအိမ် အချက်အလက် ခေါ်ယူ၍ မရပါ။");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset so initial load shows spinner when switching to another shelter
+  useEffect(() => {
+    hasLoadedOnce.current = false;
+  }, [id]);
+
+  // Fetch shelter and activities after auth, and refetch when window gains focus (so reliability score updates)
   useEffect(() => {
     if (!authChecked) return;
-    const fetchData = async () => {
-      try {
-        // Fetch shelter info
-        const shelterRes = await fetch(`/api/shelters/${id}`);
-        const shelterData = await shelterRes.json();
-        if (shelterData.success) {
-          setShelter(shelterData.shelter);
-        } else {
-          setError(shelterData.error);
-          setLoading(false);
-          return;
-        }
-
-        // Fetch activities
-        const activitiesRes = await fetch(`/api/shelters/${id}/activities`);
-        const activitiesData = await activitiesRes.json();
-        if (activitiesData.success) {
-          setActivities(activitiesData.activities);
-          setReliabilityScore(activitiesData.reliabilityScore);
-        }
-      } catch (err) {
-        setError("ခိုလှုံရာအိမ် အချက်အလက် ခေါ်ယူ၍ မရပါ။");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
+  }, [id, authChecked]);
+
+  useEffect(() => {
+    if (!authChecked || !id) return;
+    const onFocus = () => fetchData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [id, authChecked]);
 
   const formatDate = (date) => {
@@ -169,11 +184,11 @@ export default function PublicShelterPage({ params }) {
             </div>
           </div>
 
-          {/* Reliability Score */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 text-center flex-shrink-0">
-            <p className="text-xs text-gray-500 mb-1">ယုံကြည်စိတ်ချရမှု</p>
+          {/* Reliability Score - always visible */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 text-center flex-shrink-0 min-w-[5rem]">
+            <p className="text-xs text-gray-500 mb-1">ယုံကြည်စိတ်ချရမှု အမှတ်</p>
             <p className="text-xl font-bold text-blue-600">
-              {reliabilityScore.given} / {reliabilityScore.total || reliabilityScore.given || 0}
+              {reliabilityScore?.given ?? 0} / {reliabilityScore?.total ?? reliabilityScore?.given ?? 0}
             </p>
           </div>
         </div>
@@ -205,6 +220,12 @@ export default function PublicShelterPage({ params }) {
                 <InfoField label="လိပ်စာ" value={shelter.address} />
                 <InfoField label="ဖုန်းနံပါတ်" value={shelter.phone} />
               </div>
+              {shelter.description && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-medium text-gray-500 mb-1">ဖော်ပြချက်</h4>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{shelter.description}</p>
+                </div>
+              )}
             </div>
 
             {/* Population */}

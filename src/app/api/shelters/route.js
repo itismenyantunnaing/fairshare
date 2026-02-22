@@ -36,30 +36,64 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Get activity counts for each shelter (for reliability score)
+    // Reliability: total = all distributions shelter is involved in, given = activities posted for those
     const shelterIds = shelters.map((s) => s._id);
-    const activityCounts = await db
-      .collection("activities")
-      .aggregate([
-        { $match: { shelterId: { $in: shelterIds } } },
-        { $group: { _id: "$shelterId", count: { $sum: 1 } } },
-      ])
+
+    const allDistributions = await db
+      .collection("distributions")
+      .find({})
+      .project({ _id: 1, allocations: 1 })
       .toArray();
 
-    // Create a map of shelter ID to activity count
-    const activityCountMap = {};
-    activityCounts.forEach((item) => {
-      activityCountMap[item._id.toString()] = item.count;
+    const totalByShelter = {};
+    const distIdsByShelter = {};
+    shelterIds.forEach((sid) => {
+      const sidStr = sid.toString();
+      totalByShelter[sidStr] = 0;
+      distIdsByShelter[sidStr] = [];
+    });
+    allDistributions.forEach((d) => {
+      const distId = d._id;
+      (d.allocations || []).forEach((a) => {
+        const aid = a.shelterId != null && typeof a.shelterId.toString === "function" ? a.shelterId.toString() : (a.shelterId != null ? String(a.shelterId) : null);
+        if (aid && distIdsByShelter[aid] !== undefined) {
+          distIdsByShelter[aid].push(distId);
+          totalByShelter[aid]++;
+        }
+      });
     });
 
-    // Add reliability score to each shelter
-    const sheltersWithScore = shelters.map((shelter) => ({
-      ...shelter,
-      reliabilityScore: {
-        given: activityCountMap[shelter._id.toString()] || 0,
-        total: activityCountMap[shelter._id.toString()] || 0,
-      },
-    }));
+    const activitiesWithDist = await db
+      .collection("activities")
+      .find({
+        shelterId: { $in: shelterIds },
+        distributionId: { $exists: true, $ne: null },
+      })
+      .project({ shelterId: 1, distributionId: 1 })
+      .toArray();
+
+    const givenByShelter = {};
+    shelterIds.forEach((sid) => {
+      givenByShelter[sid.toString()] = 0;
+    });
+    activitiesWithDist.forEach((act) => {
+      const sidStr = act.shelterId?.toString?.();
+      const distSet = distIdsByShelter[sidStr];
+      if (distSet && distSet.some((did) => did.equals(act.distributionId))) {
+        givenByShelter[sidStr]++;
+      }
+    });
+
+    const sheltersWithScore = shelters.map((shelter) => {
+      const sidStr = shelter._id && typeof shelter._id.toString === "function" ? shelter._id.toString() : String(shelter._id);
+      return {
+        ...shelter,
+        reliabilityScore: {
+          given: Number(givenByShelter[sidStr]) || 0,
+          total: Number(totalByShelter[sidStr]) || 0,
+        },
+      };
+    });
 
     return NextResponse.json({ success: true, shelters: sheltersWithScore });
   } catch (e) {

@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -43,13 +42,19 @@ export default function Navbar() {
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
   const isSuperAdmin = user?.role === "super_admin";
+  const canManageDistribution = !!user?.canManageDistribution;
   const isShelter = user?.role === "shelter";
+  const isDonor = user?.role === "donor";
   const isApproved = user?.status === "approved";
-  const displayName = isAdmin ? user?.name : user?.hostelName;
+  const displayName = isAdmin
+    ? user?.name
+    : isDonor
+      ? user?.name
+      : user?.hostelName;
   const profileImage = user?.profileImage;
 
   // Get initials from name (first 2 characters or first letters of words)
-  const getInitials = (name) => {
+  const getInitials = name => {
     if (!name) return "?";
     const words = name.trim().split(/\s+/);
     if (words.length >= 2) {
@@ -60,7 +65,7 @@ export default function Navbar() {
   const initials = getInitials(displayName);
 
   // Helper for active link styling
-  const isActive = (path) => pathname?.startsWith(path);
+  const isActive = path => pathname?.startsWith(path);
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -73,7 +78,6 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden sm:flex items-center gap-1">
-            {/* Public Shelters link - visible to everyone */}
             <Link
               href="/shelters"
               className={`text-sm font-medium px-3 py-2 rounded-lg transition ${
@@ -84,6 +88,28 @@ export default function Navbar() {
             >
               ခိုလှုံရာအိမ်များ
             </Link>
+            <Link
+              href="/donors"
+              className={`text-sm font-medium px-3 py-2 rounded-lg transition ${
+                isActive("/donors")
+                  ? "text-blue-600 bg-blue-50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+            >
+              အလှူရှင်များ
+            </Link>
+            {(!user || isDonor) && (
+              <Link
+                href="/donate"
+                className={`text-sm font-medium px-3 py-2 rounded-lg transition ${
+                  isActive("/donate")
+                    ? "text-blue-600 bg-blue-50"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+              >
+                အလှူငွေ
+              </Link>
+            )}
 
             {loading ? (
               <div className="w-8 h-8 bg-gray-100 rounded-full animate-pulse ml-2" />
@@ -92,21 +118,14 @@ export default function Navbar() {
                 /* ─── Admin Nav ─── */
                 <div className="flex items-center gap-1">
                   <Link
-                    href="/admin/hostels"
+                    href="/admin"
                     className={`text-sm font-medium px-3 py-2 rounded-lg transition ${
-                      isActive("/admin/hostels")
+                      isActive("/admin") && !isActive("/admin/manage")
                         ? "text-blue-600 bg-blue-50"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     }`}
                   >
                     စီမံခန့်ခွဲရန်
-                  </Link>
-                  <Link
-                    href="#"
-                    className="text-sm font-medium px-3 py-2 rounded-lg text-gray-400 cursor-not-allowed"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    အလှူရှင်များ
                   </Link>
                   {isSuperAdmin && (
                     <Link
@@ -121,7 +140,9 @@ export default function Navbar() {
                     </Link>
                   )}
                   <div className="w-px h-6 bg-gray-200 mx-2" />
-                  <span className="text-sm text-gray-500 mr-1">{displayName}</span>
+                  <span className="text-sm text-gray-500 mr-1">
+                    {displayName}
+                  </span>
                   <button
                     onClick={handleLogout}
                     className="text-sm text-gray-500 hover:text-red-600 font-medium px-3 py-2 rounded-lg hover:bg-red-50 transition"
@@ -131,29 +152,59 @@ export default function Navbar() {
                 </div>
               ) : (
                 /* ─── Shelter / Donor Nav ─── */
-                <Link href={isShelter ? `/shelter/${user.id}` : "#"} className="flex items-center gap-2 ml-2">
-                  <div className="relative">
-                    {profileImage ? (
-                      <img
-                        src={profileImage}
-                        alt={displayName}
-                        className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 hover:border-blue-300 transition"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center hover:from-blue-600 hover:to-purple-700 transition cursor-pointer">
-                        <span className="text-sm font-bold text-white">{initials}</span>
-                      </div>
-                    )}
-                    {/* Verified badge indicator */}
-                    {isApproved && isShelter && (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </span>
-                    )}
-                  </div>
-                </Link>
+                <div className="flex items-center gap-1 ml-2">
+                  <Link
+                    href="/distributions"
+                    className={`text-sm font-medium px-3 py-2 rounded-lg transition ${
+                      isActive("/distributions")
+                        ? "text-blue-600 bg-blue-50"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    }`}
+                  >
+                    ဖြန့်ဝေမှုများ
+                  </Link>
+                  <Link
+                    href={
+                      isShelter
+                        ? `/shelter/${user.id}`
+                        : isDonor
+                          ? "/donor"
+                          : "#"
+                    }
+                    className="flex items-center gap-2"
+                  >
+                    <div className="relative">
+                      {profileImage ? (
+                        <img
+                          src={profileImage}
+                          alt={displayName}
+                          className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 hover:border-blue-300 transition"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center hover:from-blue-600 hover:to-purple-700 transition cursor-pointer">
+                          <span className="text-sm font-bold text-white">
+                            {initials}
+                          </span>
+                        </div>
+                      )}
+                      {isApproved && isShelter && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <svg
+                            className="w-2.5 h-2.5 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </div>
               )
             ) : (
               /* ─── Logged Out ─── */
@@ -179,11 +230,26 @@ export default function Navbar() {
             onClick={() => setMenuOpen(!menuOpen)}
             className="sm:hidden p-2 text-gray-500 hover:text-gray-700"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               {menuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               )}
             </svg>
           </button>
@@ -204,6 +270,30 @@ export default function Navbar() {
             >
               ခိုလှုံရာအိမ်များ
             </Link>
+            <Link
+              href="/donors"
+              onClick={() => setMenuOpen(false)}
+              className={`block text-sm font-medium px-3 py-2.5 rounded-lg ${
+                isActive("/donors")
+                  ? "text-blue-600 bg-blue-50"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              အလှူရှင်များ
+            </Link>
+            {(!user || isDonor) && (
+              <Link
+                href="/donate"
+                onClick={() => setMenuOpen(false)}
+                className={`block text-sm font-medium px-3 py-2.5 rounded-lg ${
+                  isActive("/donate")
+                    ? "text-blue-600 bg-blue-50"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                အလှူငွေ
+              </Link>
+            )}
             <div className="border-t border-gray-100 my-1" />
 
             {loading ? null : user ? (
@@ -214,19 +304,16 @@ export default function Navbar() {
                     {displayName} · {isSuperAdmin ? "Super Admin" : "Admin"}
                   </p>
                   <Link
-                    href="/admin/hostels"
+                    href="/admin"
                     onClick={() => setMenuOpen(false)}
                     className={`block text-sm font-medium px-3 py-2.5 rounded-lg ${
-                      isActive("/admin/hostels")
+                      isActive("/admin") && !isActive("/admin/manage")
                         ? "text-blue-600 bg-blue-50"
                         : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
                     စီမံခန့်ခွဲရန်
                   </Link>
-                  <span className="block text-sm font-medium px-3 py-2.5 text-gray-400">
-                    အလှူရှင်များ
-                  </span>
                   {isSuperAdmin && (
                     <Link
                       href="/admin/manage"
@@ -252,7 +339,24 @@ export default function Navbar() {
                 /* ─── Shelter / Donor Mobile ─── */
                 <>
                   <Link
-                    href={isShelter ? `/shelter/${user.id}` : "#"}
+                    href="/distributions"
+                    onClick={() => setMenuOpen(false)}
+                    className={`block text-sm font-medium px-3 py-2.5 rounded-lg ${
+                      isActive("/distributions")
+                        ? "text-blue-600 bg-blue-50"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    ဖြန့်ဝေမှုများ
+                  </Link>
+                  <Link
+                    href={
+                      isShelter
+                        ? `/shelter/${user.id}`
+                        : isDonor
+                          ? "/donor"
+                          : "#"
+                    }
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50"
                   >
@@ -265,37 +369,52 @@ export default function Navbar() {
                         />
                       ) : (
                         <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-bold text-white">{initials}</span>
+                          <span className="text-sm font-bold text-white">
+                            {initials}
+                          </span>
                         </div>
                       )}
                       {/* Verified badge indicator */}
                       {isApproved && isShelter && (
                         <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          <svg
+                            className="w-2.5 h-2.5 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </span>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-medium text-gray-900">{displayName}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {displayName}
+                        </p>
                         {isApproved && isShelter && (
-                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          <svg
+                            className="w-4 h-4 text-green-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400">ပရိုဖိုင် ကြည့်ရန်</p>
+                      <p className="text-xs text-gray-400">
+                        ပရိုဖိုင် ကြည့်ရန်
+                      </p>
                     </div>
                   </Link>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left text-sm text-red-600 font-medium px-3 py-2.5 rounded-lg hover:bg-red-50"
-                  >
-                    ထွက်ရန်
-                  </button>
                 </>
               )
             ) : (

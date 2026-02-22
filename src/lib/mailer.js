@@ -146,3 +146,75 @@ export async function sendRejectionEmail(to, hostelName, note) {
     `,
   });
 }
+
+/**
+ * Sends email when admin approves a donation.
+ * @param {string} summary – human-readable description, e.g. "10,000 MMK" or "ဆေးသေတ္တာ ×2, ပတ်တီး ×5"
+ */
+export async function sendDonationApprovedEmail(to, donorName, summary, certificateUrl) {
+  const transporter = getTransporter();
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject: `သင့်အလှူ အတည်ပြုပြီးပါပြီ - FairShare`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #16a34a; margin-bottom: 16px;">အလှူ အတည်ပြုပြီးပါပြီ</h2>
+        <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+          ကျေးဇူးတင်ပါသည်! ${donorName || "အလှူရှင်"} မှ လှူဒါန်းထားသော <strong>${summary}</strong> ကို 
+          စီမံခန့်ခွဲသူက စစ်ဆေးပြီး <strong style="color: #16a34a;">အတည်ပြုပြီး</strong> ဖြစ်ပါသည်။
+        </p>
+        ${
+          certificateUrl
+            ? `<p style="color: #374151; font-size: 15px; line-height: 1.6;">သင့်အလှူ လက်မှတ်ကို အောက်ပါလင့်ခ်မှ ဒေါင်းလုဒ်လုပ်နိုင်ပါသည်။</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${certificateUrl}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">လက်မှတ် ကြည့်ရန်</a>
+        </div>`
+            : ""
+        }
+        <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+          အကောင့်ရှိပါက <a href="${baseUrl}/donor">ပရိုဖိုင်</a> မှ အလှူ မှတ်တမ်းနှင့် လက်မှတ်များကို ကြည့်ရှုနိုင်ပါသည်။
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+        <p style="color: #9ca3af; font-size: 12px;">ဤသည်မှာ FairShare မှ အလိုအလျောက် ပေးပို့သော စာဖြစ်ပါသည်။</p>
+      </div>
+    `,
+  });
+}
+
+/**
+ * Sends email when admin rejects a donation.
+ * @param {string} summary – human-readable description
+ */
+export async function sendDonationRejectedEmail(to, donorName, summary, note) {
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject: `သင့်အလှူ အကြောင်းကြားစာ - FairShare`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #dc2626; margin-bottom: 16px;">အလှူ အတည်မပြုပါ</h2>
+        <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+          ဝမ်းနည်းစွာ အသိပေးအပ်ပါသည်။ ${donorName || "သင်"} မှ လှူဒါန်းထားသော <strong>${summary}</strong> 
+          ကို စီမံခန့်ခွဲသူက စစ်ဆေးပြီးနောက် <strong style="color: #dc2626;">အတည်မပြုပါ</strong>။
+        </p>
+        ${
+          note
+            ? `<div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+                <p style="color: #374151; font-size: 14px; margin: 0;"><strong>အကြောင်းပြချက်:</strong> ${note}</p>
+              </div>`
+            : ""
+        }
+        <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+          မေးမြန်းလိုပါက ကျွန်ုပ်တို့ကို ဆက်သွယ်နိုင်ပါသည်။
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+        <p style="color: #9ca3af; font-size: 12px;">ဤသည်မှာ FairShare မှ အလိုအလျောက် ပေးပို့သော စာဖြစ်ပါသည်။</p>
+      </div>
+    `,
+  });
+}

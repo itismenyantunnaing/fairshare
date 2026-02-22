@@ -17,6 +17,7 @@ export async function POST(req) {
       address,
       city,
       phone,
+      population,
       licenseImageUrl,
       ocrText,
       ocrConfidence,
@@ -73,6 +74,11 @@ export async function POST(req) {
       }
     }
 
+    const populationData = {
+      adults: Math.max(0, parseInt(population?.adults, 10) || 0),
+      children: Math.max(0, parseInt(population?.children, 10) || 0),
+    };
+
     // Save shelter record to MongoDB
     const result = await db.collection("hostels").insertOne({
       hostelName,
@@ -81,6 +87,7 @@ export async function POST(req) {
       address,
       city,
       phone,
+      population: populationData,
       licenseImageUrl,
       createdAt: new Date(),
       updatedAt: new Date(),

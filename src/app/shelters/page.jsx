@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 export default function SheltersPage() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [shelters, setShelters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,6 +22,7 @@ export default function SheltersPage() {
           router.push("/login");
           return;
         }
+        setCurrentUser(data.user);
         setAuthChecked(true);
       } catch {
         router.push("/login");
@@ -29,25 +31,33 @@ export default function SheltersPage() {
     checkAuth();
   }, [router]);
 
-  // Fetch shelters only after auth is confirmed
+  const fetchShelters = async () => {
+    try {
+      const res = await fetch("/api/shelters");
+      const data = await res.json();
+      if (data.success) {
+        setShelters(data.shelters || []);
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError("ခိုလှုံရာအိမ်များ ခေါ်ယူ၍ မရပါ။");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch shelters after auth, and refetch when window gains focus (so reliability score updates)
   useEffect(() => {
     if (!authChecked) return;
-    const fetchShelters = async () => {
-      try {
-        const res = await fetch("/api/shelters");
-        const data = await res.json();
-        if (data.success) {
-          setShelters(data.shelters);
-        } else {
-          setError(data.error);
-        }
-      } catch (err) {
-        setError("ခိုလှုံရာအိမ်များ ခေါ်ယူ၍ မရပါ။");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchShelters();
+  }, [authChecked]);
+
+  useEffect(() => {
+    if (!authChecked) return;
+    const onFocus = () => fetchShelters();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [authChecked]);
 
   // Get initials from shelter name
@@ -60,15 +70,20 @@ export default function SheltersPage() {
     return name.slice(0, 2).toUpperCase();
   };
 
-  // Filter shelters by search query
-  const filteredShelters = shelters.filter((shelter) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      shelter.hostelName?.toLowerCase().includes(query) ||
-      shelter.city?.toLowerCase().includes(query) ||
-      shelter.address?.toLowerCase().includes(query)
-    );
-  });
+  // Filter out own shelter card, then apply search query
+  const filteredShelters = shelters
+    .filter((shelter) => {
+      if (currentUser?.role === "shelter" && shelter._id === currentUser.id) return false;
+      return true;
+    })
+    .filter((shelter) => {
+      const query = searchQuery.toLowerCase();
+      return (
+        shelter.hostelName?.toLowerCase().includes(query) ||
+        shelter.city?.toLowerCase().includes(query) ||
+        shelter.address?.toLowerCase().includes(query)
+      );
+    });
 
   if (!authChecked || loading) {
     return (
@@ -184,12 +199,12 @@ export default function SheltersPage() {
                         {shelter.city}
                       </p>
                     </div>
-                    {/* Reliability Score Badge */}
-                    <div className="flex-shrink-0 bg-blue-50 rounded-lg px-2 py-1 text-center">
+                    {/* Reliability Score Badge - always visible */}
+                    <div className="flex-shrink-0 bg-blue-50 rounded-lg px-2 py-1 text-center min-w-[3rem]">
                       <p className="text-xs text-blue-600 font-medium">
-                        {shelter.reliabilityScore?.given || 0}/{shelter.reliabilityScore?.total || 0}
+                        {Number(shelter.reliabilityScore?.given) ?? 0}/{Number(shelter.reliabilityScore?.total) ?? 0}
                       </p>
-                      <p className="text-[10px] text-blue-400">ယုံကြည်မှု</p>
+                      <p className="text-[10px] text-blue-400">ယုံကြည်စိတ်ချရမှု</p>
                     </div>
                   </div>
 

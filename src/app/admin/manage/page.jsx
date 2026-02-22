@@ -12,6 +12,7 @@ export default function AdminManagePage() {
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
+  const [updatingPerm, setUpdatingPerm] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -92,6 +93,31 @@ export default function AdminManagePage() {
       setError("စီမံခန့်ခွဲသူ ဖန်တီးခြင်း မအောင်မြင်ပါ။");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleToggleDistributionPermission = async (adminId, currentValue) => {
+    const adminIdStr = typeof adminId === "string" ? adminId : adminId?.toString();
+    if (!adminIdStr) return;
+    setUpdatingPerm(adminIdStr);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/manage", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId: adminIdStr, canManageDistribution: !currentValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message);
+        fetchAdmins();
+      } else {
+        setError(data.error);
+      }
+    } catch {
+      setError("ခွင့်ပြုချက် ပြင်ခြင်း မအောင်မြင်ပါ။");
+    } finally {
+      setUpdatingPerm(null);
     }
   };
 
@@ -272,16 +298,35 @@ export default function AdminManagePage() {
                   >
                     {a.role === "super_admin" ? "Super Admin" : "Admin"}
                   </span>
+                  {a.role !== "super_admin" && a._id !== admin?.id && (
+                    <span className="text-xs text-gray-500">
+                      ဖြန့်ဝေမှု ခွင့်: {a.canManageDistribution ? "ရှိ" : "မရှိ"}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {a._id !== admin?.id && a.role !== "super_admin" && (
-                    <button
-                      onClick={() => handleDelete(a._id, a.name)}
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDistributionPermission(a._id, a.canManageDistribution)}
+                        disabled={updatingPerm === (a._id?.toString?.() || a._id)}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition disabled:opacity-50"
+                      >
+                        {updatingPerm === (a._id?.toString?.() || a._id)
+                          ? "..."
+                          : a.canManageDistribution
+                            ? "ဖြန့်ဝေမှု ခွင့် ဖယ်ရှားမည်"
+                            : "ဖြန့်ဝေမှု ခွင့် ပေးမည်"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(a._id, a.name)}
                       disabled={deleting === a._id}
                       className="text-sm text-red-500 hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
                     >
                       {deleting === a._id ? "ဖျက်နေသည်..." : "ဖျက်ရန်"}
                     </button>
+                    </>
                   )}
                 </div>
               </div>

@@ -1,12 +1,13 @@
 "use client";
 import { useState, useEffect, useRef, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { uploadImage } from "@/lib/supabase";
+import { uploadImageToCloudinary } from "@/lib/uploadClient";
 
 export default function ShelterActivitiesPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [authChecked, setAuthChecked] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [activities, setActivities] = useState([]);
@@ -18,16 +19,16 @@ export default function ShelterActivitiesPage({ params }) {
   const [success, setSuccess] = useState(null);
 
   const imageInputRef = useRef(null);
-  const excelInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
-    distributionName: "",
-    distributionDate: "",
+    distributionId: "",
     title: "",
     description: "",
   });
+  const [distributionsForActivity, setDistributionsForActivity] = useState([]);
+  const [distributionsForActivityChecked, setDistributionsForActivityChecked] = useState(false);
+  const [loadingDistributions, setLoadingDistributions] = useState(false);
   const [images, setImages] = useState([]); // Array of { file: File, preview: string }
-  const [excelFile, setExcelFile] = useState(null); // { file: File, name: string }
 
   // Auth check
   useEffect(() => {
@@ -93,6 +94,47 @@ export default function ShelterActivitiesPage({ params }) {
     }
   }, [error]);
 
+  // Fetch distributions available for posting on load (shelter owner) so we can hide Add button when none left
+  useEffect(() => {
+    if (!authChecked || !isOwner || !id) return;
+    fetch(`/api/shelters/${id}/distributions-for-activity`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setDistributionsForActivity(data.distributions || []);
+        else setDistributionsForActivity([]);
+      })
+      .catch(() => setDistributionsForActivity([]))
+      .finally(() => setDistributionsForActivityChecked(true));
+  }, [authChecked, isOwner, id]);
+
+  // Re-fetch distributions when form is shown (fresh list) and set loading for form dropdown
+  useEffect(() => {
+    if (!showForm || !isOwner || !id) return;
+    setLoadingDistributions(true);
+    fetch(`/api/shelters/${id}/distributions-for-activity`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setDistributionsForActivity(data.distributions || []);
+        else setDistributionsForActivity([]);
+      })
+      .catch(() => setDistributionsForActivity([]))
+      .finally(() => setLoadingDistributions(false));
+  }, [showForm, isOwner, id]);
+
+  // When opened with ?distributionId=xxx from distributions detail, open form so distributions get fetched
+  useEffect(() => {
+    const distributionIdFromUrl = searchParams.get("distributionId");
+    if (distributionIdFromUrl && isOwner) setShowForm(true);
+  }, [searchParams, isOwner]);
+
+  // Once distributions are loaded and URL has distributionId, pre-select it in the form
+  useEffect(() => {
+    const distributionIdFromUrl = searchParams.get("distributionId");
+    if (!distributionIdFromUrl || !isOwner || distributionsForActivity.length === 0) return;
+    const exists = distributionsForActivity.some((d) => d.id === distributionIdFromUrl);
+    if (exists) setFormData((prev) => ({ ...prev, distributionId: distributionIdFromUrl }));
+  }, [searchParams, isOwner, distributionsForActivity]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -112,28 +154,8 @@ export default function ShelterActivitiesPage({ params }) {
     setImages((prev) => [...prev, ...newImages]);
   };
 
-  const handleExcelUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const validTypes = [
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "text/csv",
-      ];
-      if (!validTypes.includes(file.type)) {
-        setError("Excel သို့မဟုတ် CSV ဖိုင်သာ တင်နိုင်ပါသည်။");
-        return;
-      }
-      setExcelFile({ file, name: file.name });
-    }
-  };
-
   const removeImage = (idx) => {
     setImages((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const removeExcel = () => {
-    setExcelFile(null);
   };
 
   const handleSubmit = async (e) => {
@@ -142,34 +164,29 @@ export default function ShelterActivitiesPage({ params }) {
     setError(null);
 
     try {
-      // Upload images to Supabase
+      // Upload images to Cloudinary
       const imageUrls = [];
       for (const img of images) {
-        const result = await uploadImage(img.file, `activities/${id}`);
+        const result = await uploadImageToCloudinary(img.file, `activities/${id}`);
         if (result.error) {
           throw new Error(`ဓာတ်ပုံ တင်၍ မရပါ: ${result.error}`);
         }
         imageUrls.push(result.url);
       }
 
-      // Upload excel file if exists
-      let excelUrl = null;
-      if (excelFile) {
-        const result = await uploadImage(excelFile.file, `activities/${id}/files`);
-        if (result.error) {
-          throw new Error(`Excel ဖိုင် တင်၍ မရပါ: ${result.error}`);
-        }
-        excelUrl = result.url;
-      }
-
       // Create activity
+      const selectedDist = distributionsForActivity.find((d) => d.id === formData.distributionId);
       const res = await fetch(`/api/shelters/${id}/activities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
+          distributionId: formData.distributionId,
+          distributionName: selectedDist?.name,
+          distributionDate: selectedDist?.endDate,
+          title: formData.title,
+          description: formData.description,
           images: imageUrls,
-          excelFile: excelUrl,
+          excelFile: null,
         }),
       });
 
@@ -177,15 +194,20 @@ export default function ShelterActivitiesPage({ params }) {
       if (data.success) {
         setSuccess(data.message);
         setShowForm(false);
-        setFormData({ distributionName: "", distributionDate: "", title: "", description: "" });
+        setFormData({ distributionId: "", title: "", description: "" });
         setImages([]);
-        setExcelFile(null);
         // Refresh activities
         const activitiesRes = await fetch(`/api/shelters/${id}/activities`);
         const activitiesData = await activitiesRes.json();
         if (activitiesData.success) {
           setActivities(activitiesData.activities);
-          setReliabilityScore(activitiesData.reliabilityScore);
+          if (activitiesData.reliabilityScore) setReliabilityScore(activitiesData.reliabilityScore);
+        }
+        // Refresh distributions left to post (so Add button hides when none left)
+        const distRes = await fetch(`/api/shelters/${id}/distributions-for-activity`);
+        const distData = await distRes.json();
+        if (distData.success) {
+          setDistributionsForActivity(distData.distributions || []);
         }
       } else {
         setError(data.error);
@@ -273,8 +295,8 @@ export default function ShelterActivitiesPage({ params }) {
           </div>
         )}
 
-        {/* Add Activity Button - Only for owner */}
-        {isOwner && !showForm && (
+        {/* Add Activity Button - Only for owner when there are distributions left to post */}
+        {isOwner && !showForm && distributionsForActivityChecked && distributionsForActivity.length > 0 && (
           <button
             onClick={() => setShowForm(true)}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-sm font-semibold transition mb-6 flex items-center justify-center gap-2"
@@ -291,34 +313,34 @@ export default function ShelterActivitiesPage({ params }) {
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">လှုပ်ရှားမှု အသစ် တင်ရန်</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Distribution Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
-                    ဖြန့်ဝေမှု အမည် <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    name="distributionName"
-                    type="text"
-                    value={formData.distributionName}
+              {/* Distribution selection */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  ဖြန့်ဝေမှု ရွေးချယ်ရန် <span className="text-red-500">*</span>
+                </label>
+                {loadingDistributions ? (
+                  <p className="text-sm text-gray-500 py-2">ဖြန့်ဝေမှုစာရင်း ခေါ်ယူနေသည်...</p>
+                ) : distributionsForActivity.length === 0 ? (
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                    ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ပြီးပြီ သို့မဟုတ် တင်ရန် ဖြန့်ဝေမှု မရှိသေးပါ။ (ဖြန့်ဝေမှု စတင်ရက်မှ ၇ ရက်အတွင်း တင်ရမည်)
+                  </p>
+                ) : (
+                  <select
+                    name="distributionId"
+                    value={formData.distributionId}
                     onChange={handleChange}
-                    placeholder="ဥပမာ - ဖေဖော်ဝါရီလ ဖြန့်ဝေမှု"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
-                    ဖြန့်ဝေသည့် နေ့စွဲ
-                  </label>
-                  <input
-                    name="distributionDate"
-                    type="date"
-                    value={formData.distributionDate}
-                    onChange={handleChange}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                </div>
+                  >
+                    <option value="">ဖြန့်ဝေမှု ရွေးပါ</option>
+                    {distributionsForActivity.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} — {formatDate(d.endDate)}
+                        {d.withinDeadline === false ? " (ရက်ကျော်)" : " (ရက်စွဲအတွင်း)"}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Title */}
@@ -392,49 +414,18 @@ export default function ShelterActivitiesPage({ params }) {
                 )}
               </div>
 
-              {/* Excel Upload */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  အလှူပစ္စည်း စာရင်း (Excel/CSV)
-                </label>
-                {excelFile ? (
-                  <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span className="text-sm text-gray-700">{excelFile.name}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={removeExcel}
-                      className="text-red-500 hover:text-red-700 text-sm font-medium"
-                    >
-                      ဖယ်ရှားရန်
-                    </button>
-                  </div>
-                ) : (
-                  <label className="block border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition cursor-pointer">
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleExcelUpload}
-                      className="hidden"
-                      ref={excelInputRef}
-                    />
-                    <svg className="w-6 h-6 text-gray-400 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-xs text-gray-500">Excel သို့မဟုတ် CSV ဖိုင် တင်ရန်</p>
-                  </label>
-                )}
-              </div>
-
               {/* Form Actions */}
+              {formData.distributionId && distributionsForActivity.find((d) => d.id === formData.distributionId)?.withinDeadline === false && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ရန် ရက်စွဲ ကျော်လွန်ပြီးဖြစ်ပါသည်။</p>
+              )}
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={
+                    submitting ||
+                    distributionsForActivity.length === 0 ||
+                    (formData.distributionId && distributionsForActivity.find((d) => d.id === formData.distributionId)?.withinDeadline === false)
+                  }
                   className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white py-2.5 rounded-lg text-sm font-semibold transition"
                 >
                   {submitting ? "တင်နေသည်..." : "တင်ရန်"}
@@ -443,9 +434,8 @@ export default function ShelterActivitiesPage({ params }) {
                   type="button"
                   onClick={() => {
                     setShowForm(false);
-                    setFormData({ distributionName: "", distributionDate: "", title: "", description: "" });
+                    setFormData({ distributionId: "", title: "", description: "" });
                     setImages([]);
-                    setExcelFile(null);
                   }}
                   disabled={submitting}
                   className="flex-1 bg-white hover:bg-gray-50 text-gray-700 py-2.5 rounded-lg text-sm font-semibold transition border border-gray-300"
@@ -513,19 +503,6 @@ export default function ShelterActivitiesPage({ params }) {
                           </svg>
                           {activity.images.length} ပုံ
                         </span>
-                      )}
-                      {activity.excelFile && (
-                        <a
-                          href={activity.excelFile}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Excel
-                        </a>
                       )}
                       <span>{formatDate(activity.createdAt)}</span>
                     </div>

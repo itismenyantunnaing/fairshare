@@ -42,6 +42,7 @@ export async function GET(req, { params }) {
           city: 1,
           address: 1,
           phone: 1,
+          description: 1,
           profileImages: 1,
           population: 1,
           createdAt: 1,

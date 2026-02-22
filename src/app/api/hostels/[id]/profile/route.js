@@ -9,11 +9,12 @@ import { getSession } from "@/lib/auth";
  * - Shelter owner can access their own profile
  * - Admins can view any shelter profile (read-only)
  */
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
-    const { id } = await params;
+    const params = context?.params != null ? await context.params : {};
+    const id = params?.id;
 
-    if (!ObjectId.isValid(id)) {
+    if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
@@ -64,6 +65,7 @@ export async function GET(req, { params }) {
       address: hostel.address,
       city: hostel.city,
       phone: hostel.phone,
+      description: hostel.description ?? "",
       population: hostel.population || { adults: 0, children: 0 },
       profileImages: hostel.profileImages || [],
       verification: {
@@ -90,8 +92,9 @@ export async function GET(req, { params }) {
  *
  * Body: {
  *   hostelName, email, address, city, phone,
- *   population: { adults: number, children: number },
- *   profileImages: string[] (Supabase URLs, max 5)
+ *   description?: string,
+ *   population: { adults: number, children: number } (required),
+ *   profileImages: string[] (max 5)
  * }
  */
 export async function PUT(req, { params }) {
@@ -138,7 +141,7 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const { hostelName, email, address, city, phone, population, profileImages } = body;
+    const { hostelName, email, address, city, phone, description, population, profileImages } = body;
 
     // Validate required fields
     if (!hostelName || !email || !address || !city || !phone) {
@@ -157,10 +160,16 @@ export async function PUT(req, { params }) {
       );
     }
 
-    // Validate population
+    // Population is required in profile
+    if (population == null || typeof population !== "object") {
+      return NextResponse.json(
+        { success: false, error: "လူဦးရေ အချက်အလက် (အရွယ်ရောက်ပြီးသူ / ကလေး) ထည့်သွင်းရန် လိုအပ်ပါသည်။" },
+        { status: 400 }
+      );
+    }
     const populationData = {
-      adults: Math.max(0, parseInt(population?.adults) || 0),
-      children: Math.max(0, parseInt(population?.children) || 0),
+      adults: Math.max(0, parseInt(population.adults, 10) || 0),
+      children: Math.max(0, parseInt(population.children, 10) || 0),
     };
 
     // Validate profile images (max 5, must be URL strings)
@@ -181,6 +190,8 @@ export async function PUT(req, { params }) {
       images = profileImages;
     }
 
+    const descriptionStr = description != null ? String(description).trim() : (hostel.description ?? "");
+
     // Update the shelter profile
     await db.collection("hostels").updateOne(
       { _id: new ObjectId(id) },
@@ -191,6 +202,7 @@ export async function PUT(req, { params }) {
           address,
           city,
           phone,
+          description: descriptionStr,
           population: populationData,
           profileImages: images,
           updatedAt: new Date(),

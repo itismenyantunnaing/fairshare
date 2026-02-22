@@ -38,9 +38,39 @@ export async function GET() {
       } catch {
         // Ignore DB errors, continue without profile image
       }
+    } else if (session.role === "donor") {
+      user.name = session.name;
+      try {
+        const client = await clientPromise;
+        const db = client.db("FairShare");
+        const donor = await db.collection("donors").findOne(
+          { _id: new ObjectId(session.id) },
+          { projection: { profileImage: 1, name: 1 } }
+        );
+        if (donor) {
+          user.profileImage = donor.profileImage || null;
+          user.name = donor.name || session.name;
+        }
+      } catch {
+        // Ignore DB errors
+      }
     } else {
       // admin or super_admin
       user.name = session.name;
+      user.canManageDistribution = session.role === "super_admin";
+      if (session.role === "admin") {
+        try {
+          const client = await clientPromise;
+          const db = client.db("FairShare");
+          const admin = await db.collection("admins").findOne(
+            { _id: new ObjectId(session.id) },
+            { projection: { canManageDistribution: 1 } }
+          );
+          user.canManageDistribution = !!admin?.canManageDistribution;
+        } catch {
+          user.canManageDistribution = false;
+        }
+      }
     }
 
     return NextResponse.json({ success: true, user });

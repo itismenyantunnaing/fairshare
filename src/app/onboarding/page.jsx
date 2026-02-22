@@ -1,8 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Tesseract from "tesseract.js";
-import { uploadImage } from "@/lib/supabase";
+import { uploadImageToCloudinary } from "@/lib/uploadClient";
 
 export default function HostelOnboarding() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function HostelOnboarding() {
     address: "",
     city: "",
     phone: "",
+    adults: "",
+    children: "",
   });
   const [licenseFile, setLicenseFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -110,9 +113,9 @@ export default function HostelOnboarding() {
         // Continue without OCR — server will set status to pending
       }
 
-      // Upload image to Supabase Storage
+      // Upload image to Cloudinary
       setLoadingStep("ပုံတင်နေသည်...");
-      const uploadResult = await uploadImage(licenseFile, "certificates");
+      const uploadResult = await uploadImageToCloudinary(licenseFile, "certificates");
 
       if (uploadResult.error) {
         setResult({
@@ -135,13 +138,19 @@ export default function HostelOnboarding() {
           address: formData.address,
           city: formData.city,
           phone: formData.phone,
+          population: {
+            adults: parseInt(formData.adults, 10) || 0,
+            children: parseInt(formData.children, 10) || 0,
+          },
           licenseImageUrl: uploadResult.url,
           ocrText,
           ocrConfidence,
         }),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type");
+      const isJson = contentType && contentType.includes("application/json");
+      const data = isJson ? await response.json() : { success: false, error: "ဆာဗာမှ တုံ့ပြန်ချက် မမှန်ပါ။" };
 
       if (data.success) {
         const isPending = data.verification.status === "pending";
@@ -164,11 +173,11 @@ export default function HostelOnboarding() {
           message: data.error || "မှတ်ပုံတင်ခြင်း မအောင်မြင်ပါ။ ထပ်မံကြိုးစားပါ။",
         });
       }
-    } catch (error) {
-      setResult({
-        type: "error",
-        message: "ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။",
-      });
+    } catch (err) {
+      const msg = err?.message && /failed to fetch|network/i.test(String(err.message))
+        ? "ချိတ်ဆက်မှု မအောင်မြင်ပါ။ အင်တာနက်နှင့် ဆာဗာ စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။"
+        : "ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။";
+      setResult({ type: "error", message: msg });
     } finally {
       setLoading(false);
     }
@@ -177,6 +186,17 @@ export default function HostelOnboarding() {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4">
       <div className="max-w-xl mx-auto">
+
+        {/* Back to account type selection */}
+        <Link
+          href="/signup"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          အမျိုးအစား ပြန်ရွေးရန်
+        </Link>
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
@@ -334,6 +354,53 @@ export default function HostelOnboarding() {
                 required
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
+            </div>
+
+            {/* Population */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                လူဦးရေ အချက်အလက် <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="adults"
+                    className="block text-xs font-medium text-gray-500 mb-1"
+                  >
+                    အရွယ်ရောက်ပြီးသူ အရေအတွက်
+                  </label>
+                  <input
+                    id="adults"
+                    name="adults"
+                    type="number"
+                    min="0"
+                    placeholder="ဥပမာ - 25"
+                    value={formData.adults}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="children"
+                    className="block text-xs font-medium text-gray-500 mb-1"
+                  >
+                    ကလေး အရေအတွက်
+                  </label>
+                  <input
+                    id="children"
+                    name="children"
+                    type="number"
+                    min="0"
+                    placeholder="ဥပမာ - 10"
+                    value={formData.children}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Certificate Upload */}
