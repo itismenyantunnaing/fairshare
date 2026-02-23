@@ -1,6 +1,7 @@
 import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { verifyTransactionScreenshotText } from "@/lib/vision";
 
 const VALID_CATEGORIES = ["money", "medical", "clothing", "food"];
 const VALID_PAYMENT_METHODS = ["kpay", "wave"];
@@ -31,6 +32,8 @@ export async function POST(req) {
       amount,
       paymentMethod,
       transactionScreenshot,
+      ocrText,
+      ocrConfidence,
       medicalItems,
       clothingItems,
       rice,
@@ -94,6 +97,19 @@ export async function POST(req) {
           { success: false, error: "ငွေလွှဲပုံ ဓာတ်ပုံ တင်ပါ။" },
           { status: 400 }
         );
+      }
+      // AI verification of transaction screenshot (like shelter certificate)
+      if (ocrText) {
+        const visionResult = verifyTransactionScreenshotText(ocrText, ocrConfidence || 0);
+        if (!visionResult.isLegit) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "ငွေလွှဲပုံ ဓာတ်ပုံသည် ငွေပေးချေမှု အတည်ပြုချက် မဟုတ်ဟု စစ်ဆေးပါသည်။ ကျေးဇူးပြု၍ KPay/Wave လွှဲငွေ အောင်မြင်သည့်ပုံ (သို့) လက်မှတ်ပုံ ရှင်းလင်းစွာ တင်ပါ။",
+            },
+            { status: 400 }
+          );
+        }
       }
       const donation = {
         ...base,

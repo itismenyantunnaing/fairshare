@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { canManageDistribution } from "@/lib/distributionAuth";
 
-const SCHEDULE_TYPES = ["yesterday", "last_week", "custom"];
+const SCHEDULE_TYPES = ["today", "yesterday", "last_week", "custom", "all"];
 const CLOTHING_TYPES = ["shirt_child", "shirt_adult", "pants_child", "pants_adult", "other"];
 
 function startOfDay(d) {
@@ -36,11 +36,21 @@ function endOfWeek(d) {
   return endOfDay(x);
 }
 
+/** Today 00:00 and 23:59:59 */
+function todayRange(now) {
+  return { start: startOfDay(now), end: endOfDay(now) };
+}
+
 /** Yesterday 00:00 and 23:59:59 */
 function yesterdayRange(now) {
   const y = new Date(now);
   y.setUTCDate(y.getUTCDate() - 1);
   return { start: startOfDay(y), end: endOfDay(y) };
+}
+
+/** All donations: from epoch to end of today */
+function allRange(now) {
+  return { start: new Date(0), end: endOfDay(now) };
 }
 
 /** Last week (previous Mon–Sun) */
@@ -112,7 +122,7 @@ export async function POST(req) {
 
     if (!scheduleType || !SCHEDULE_TYPES.includes(scheduleType)) {
       return NextResponse.json(
-        { success: false, error: "အချိန်ဇယား အမျိုးအစား မမှန်ကန်ပါ။ yesterday, last_week သို့မဟုတ် custom ဖြစ်ရမည်။" },
+        { success: false, error: "အချိန်ဇယား အမျိုးအစား မမှန်ကန်ပါ။ today, yesterday, last_week, custom သို့မဟုတ် all ဖြစ်ရမည်။" },
         { status: 400 }
       );
     }
@@ -121,12 +131,20 @@ export async function POST(req) {
     let endD;
     const now = new Date();
 
-    if (scheduleType === "yesterday") {
+    if (scheduleType === "today") {
+      const { start, end } = todayRange(now);
+      startD = start;
+      endD = end;
+    } else if (scheduleType === "yesterday") {
       const { start, end } = yesterdayRange(now);
       startD = start;
       endD = end;
     } else if (scheduleType === "last_week") {
       const { start, end } = lastWeekRange(now);
+      startD = start;
+      endD = end;
+    } else if (scheduleType === "all") {
+      const { start, end } = allRange(now);
       startD = start;
       endD = end;
     } else {
@@ -364,18 +382,14 @@ export async function POST(req) {
       name: name && String(name).trim() ? String(name).trim() : null,
       createdBy: new ObjectId(session.id),
       createdAt: new Date(),
+      status: "draft",
       donationIds,
       allocations,
     };
 
     const result = await db.collection("distributions").insertOne(doc);
 
-    if (donationIds.length > 0) {
-      await db.collection("donations").updateMany(
-        { _id: { $in: donationIds } },
-        { $set: { distributionId: result.insertedId } }
-      );
-    }
+    // Draft: do not assign donations yet; admin will Confirm on detail page
 
     return NextResponse.json({
       success: true,

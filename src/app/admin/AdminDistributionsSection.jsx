@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const SCHEDULE_LABEL = { yesterday: "ယမန်နေ့", last_week: "ပြီးခဲ့သော အပတ်", custom: "စိတ်ကြိုက် ကာလ" };
-const SCHEDULE_OPTIONS = ["yesterday", "last_week", "custom"];
+const SCHEDULE_LABEL = { today: "ယနေ့", yesterday: "ယမန်နေ့", last_week: "ပြီးခဲ့သော အပတ်", custom: "စိတ်ကြိုက် ကာလ", all: "အလှူငွေအားလုံး" };
+const SCHEDULE_OPTIONS = ["today", "yesterday", "last_week", "custom", "all"];
 
 function formatDate(d) {
   if (!d) return "—";
@@ -12,6 +13,7 @@ function formatDate(d) {
 }
 
 export default function AdminDistributionsSection() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [distributions, setDistributions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ export default function AdminDistributionsSection() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [formData, setFormData] = useState({
-    scheduleType: "yesterday",
+    scheduleType: "today",
     startDate: "",
     endDate: "",
     name: "",
@@ -95,10 +97,12 @@ export default function AdminDistributionsSection() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess("ဖြန့်ဝေမှု ဖန်တီးပြီးပါပြီ။");
+        setSuccess("ဖြန့်ဝေမှု ဖန်တီးပြီးပါပြီ။ အတည်ပြု သို့မဟုတ် ပယ်ဖျက်ရန် အသေးစိတ်သို့ သွားပါ။");
         setShowForm(false);
-        setFormData({ scheduleType: "yesterday", startDate: "", endDate: "", name: "" });
-        fetchDistributions();
+        setFormData({ scheduleType: "today", startDate: "", endDate: "", name: "" });
+        const distId = data.distribution?.id || data.distribution?._id?.toString();
+        if (distId) router.push(`/admin/distributions/${distId}`);
+        else fetchDistributions();
       } else {
         setError(data.error || "ဖြန့်ဝေမှု ဖန်တီး၍ မရပါ။");
       }
@@ -215,7 +219,7 @@ export default function AdminDistributionsSection() {
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setFormData({ scheduleType: "yesterday", startDate: "", endDate: "", name: "" });
+                  setFormData({ scheduleType: "today", startDate: "", endDate: "", name: "" });
                 }}
                 className="px-4 py-2.5 rounded-lg text-gray-600 hover:text-gray-900 text-sm font-medium"
               >
@@ -243,7 +247,12 @@ export default function AdminDistributionsSection() {
                 className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50"
               >
                 <div>
-                  <p className="font-medium text-gray-900">{d.name || "အမည်မသိ"}</p>
+                  <p className="font-medium text-gray-900">
+                    {d.name || "အမည်မသိ"}
+                    {d.status === "draft" && (
+                      <span className="ml-2 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">မအတည်ပြုရသေး</span>
+                    )}
+                  </p>
                   <p className="text-sm text-gray-500">
                     {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType} · {formatDate(d.startDate)} — {formatDate(d.endDate)}
                   </p>

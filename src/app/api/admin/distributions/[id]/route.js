@@ -116,7 +116,7 @@ export async function GET(req, { params }) {
 
 /**
  * DELETE /api/admin/distributions/[id]
- * Delete distribution anytime. Also deletes all donations that were included in this distribution. Requires canManageDistribution.
+ * Cancel/delete distribution: restore donations to pool (unset distributionId) then delete distribution. Requires canManageDistribution.
  */
 export async function DELETE(req, { params }) {
   try {
@@ -154,7 +154,10 @@ export async function DELETE(req, { params }) {
     if (donationIds.length > 0) {
       const ids = donationIds.map((oid) => (oid && ObjectId.isValid(oid) ? new ObjectId(oid) : null)).filter(Boolean);
       if (ids.length > 0) {
-        await db.collection("donations").deleteMany({ _id: { $in: ids } });
+        await db.collection("donations").updateMany(
+          { _id: { $in: ids } },
+          { $unset: { distributionId: "" } }
+        );
       }
     }
 
@@ -162,7 +165,7 @@ export async function DELETE(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: "ဖြန့်ဝေမှု နှင့် ယင်းပါဝင်သော အလှူများ ဖျက်ပြီးပါပြီ။",
+      message: "ဖြန့်ဝေမှု ဖျက်ပြီးပါပြီ။ အလှူများ ပြန်လည် သုံးစွဲနိုင်ပါပြီ။",
     });
   } catch (e) {
     console.error("DELETE distribution error:", e);

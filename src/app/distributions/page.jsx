@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const SCHEDULE_LABEL = {
+  today: "ယနေ့",
   yesterday: "ယမန်နေ့",
   last_week: "ပြီးခဲ့သော အပတ်",
   custom: "စိတ်ကြိုက် ကာလ",
+  all: "အလှူငွေအားလုံး",
 };
 
 function formatDate(d) {

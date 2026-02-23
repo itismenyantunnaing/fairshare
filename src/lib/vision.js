@@ -234,3 +234,75 @@ export function verifyCertificateText(ocrText, ocrConfidence = 0) {
     },
   };
 }
+
+/**
+ * Server-side transaction screenshot verification for money donations.
+ * Scores OCR text from the donor's payment screenshot (KPay, Wave, etc.) to determine
+ * if the image looks like a real transaction / payment proof.
+ *
+ * @param {string} ocrText - Text extracted from the image via client-side Tesseract.js
+ * @param {number} ocrConfidence - OCR confidence score (0-100)
+ * @returns {object} Verification result with isLegit flag and analysis details
+ */
+export function verifyTransactionScreenshotText(ocrText, ocrConfidence = 0) {
+  const fullText = (ocrText || "").toLowerCase();
+
+  // Payment app / method keywords
+  const paymentKeywords = [
+    "kpay",
+    "wave",
+    "wave money",
+    "cb pay",
+    "mpu",
+    "payment",
+    "transfer",
+    "transaction",
+    "send money",
+    "sent",
+    "paid",
+    "success",
+    "completed",
+    "receipt",
+    "balance",
+    "amount",
+    "mmk",
+    "kyat",
+    "ks",
+  ];
+
+  // Number/amount patterns (screenshots usually show numbers)
+  const hasAmountPattern = /\d{1,3}(,\d{3})*(\.\d+)?\s*(mmk|kyat|ks)?/i.test(fullText)
+    || /\d+\s*(mmk|kyat|ks)/i.test(fullText)
+    || /amount\s*[:\s]*\d+/i.test(fullText);
+
+  const matchedPayment = [];
+  for (const kw of paymentKeywords) {
+    if (fullText.includes(kw)) matchedPayment.push(kw);
+  }
+
+  let score = matchedPayment.length * 8;
+  if (fullText.length > 50) score += 5;
+  if (fullText.length > 150) score += 5;
+  if (hasAmountPattern) score += 10;
+
+  // Pass if: at least 2 payment-related keywords and (amount-like text or decent length)
+  const hasEnoughKeywords = matchedPayment.length >= 2;
+  const hasAmountOrLength = hasAmountPattern || fullText.length >= 80;
+  const meetsScore = score >= 20;
+
+  const isLegit = hasEnoughKeywords && hasAmountOrLength && meetsScore;
+
+  return {
+    isLegit,
+    score,
+    confidence: Math.round(ocrConfidence),
+    matchedKeywords: matchedPayment,
+    textLength: fullText.length,
+    textPreview: fullText.substring(0, 300),
+    details: {
+      hasAmountPattern,
+      matchedPayment,
+      hasEnoughKeywords,
+    },
+  };
+}

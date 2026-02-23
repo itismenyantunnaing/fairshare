@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Tesseract from "tesseract.js";
 import { uploadImageToCloudinary } from "@/lib/uploadClient";
 
 const KPAY_PHONE = process.env.NEXT_PUBLIC_KPAY_PHONE || "09967777577";
@@ -127,11 +128,39 @@ export default function DonatePage() {
     if (!screenshotFile) { setError("ငွေလွှဲပုံ ဓာတ်ပုံ တင်ပါ။"); return; }
     setLoading(true); setError(null);
     try {
+      // Run OCR on screenshot for AI verification (like shelter certificate)
+      let ocrText = "";
+      let ocrConfidence = 0;
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(screenshotFile);
+        });
+        const { data } = await Tesseract.recognize(base64, "eng");
+        ocrText = data.text || "";
+        ocrConfidence = data.confidence ?? 0;
+      } catch (ocrErr) {
+        console.error("OCR on screenshot failed:", ocrErr);
+      }
+
       const uploadResult = await uploadImageToCloudinary(screenshotFile, "donations/screenshots");
       if (uploadResult.error) { setError(uploadResult.error); setLoading(false); return; }
       const res = await fetch("/api/donations", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ donorId: user?.role === "donor" ? user.id : null, category: "money", amount: Number(formData.amount), paymentMethod: formData.paymentMethod, name: formData.name.trim(), email: formData.email.trim(), message: formData.message.trim() || null, transactionScreenshot: uploadResult.url }),
+        body: JSON.stringify({
+          donorId: user?.role === "donor" ? user.id : null,
+          category: "money",
+          amount: Number(formData.amount),
+          paymentMethod: formData.paymentMethod,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          message: formData.message.trim() || null,
+          transactionScreenshot: uploadResult.url,
+          ocrText: ocrText || undefined,
+          ocrConfidence: ocrConfidence || undefined,
+        }),
       });
       const data = await res.json();
       if (data.success) { resetForm(); setSuccess(data.message); } else { setError(data.error); }

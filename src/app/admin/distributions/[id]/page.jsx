@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const SCHEDULE_LABEL = {
+  today: "ယနေ့",
   yesterday: "ယမန်နေ့",
   last_week: "ပြီးခဲ့သော အပတ်",
   custom: "စိတ်ကြိုက် ကာလ",
+  all: "အလှူငွေအားလုံး",
   this_day: "ယနေ့",
   this_week: "ဒီအပတ်",
   daily: "နေ့စဉ်",
@@ -37,6 +39,7 @@ export default function AdminDistributionDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -114,15 +117,38 @@ export default function AdminDistributionDetailPage({ params }) {
     }
   };
 
-  const handleDeleteDistribution = async () => {
-    if (!confirm("ဤဖြန့်ဝေမှုကို လုံးဝ ဖျက်မည်လား? ပြန်လည်ပြုပြင်၍ မရပါ။")) return;
+  const handleConfirm = async () => {
+    if (!confirm("ဤဖြန့်ဝေမှုကို အတည်ပြုမည်လား? အလှူများ ဤဖြန့်ဝေမှုသို့ ထည့်သွင်းပြီး စာရင်းမှ ပျောက်သွားမည်။")) return;
+    setConfirming(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/distributions/${id}/confirm`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message || "အတည်ပြုပြီးပါပြီ။");
+        fetchDistribution();
+      } else {
+        setError(data.error || "အတည်ပြု၍ မရပါ။");
+      }
+    } catch {
+      setError("အတည်ပြု၍ မရပါ။");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const handleCancelDistribution = async () => {
+    const msg = (distribution?.status === "draft")
+      ? "ဤဖြန့်ဝေမှုကို ပယ်ဖျက်မည်လား? အလှူများ ပြန်လည် သုံးစွဲနိုင်ပါမည်။"
+      : "ဤဖြန့်ဝေမှုကို ဖျက်မည်လား? အလှူများ ပြန်လည် သုံးစွဲနိုင်ပါမည်။";
+    if (!confirm(msg)) return;
     setDeleting(true);
     setError(null);
     try {
       const res = await fetch(`/api/admin/distributions/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        router.push("/admin/distributions");
+        router.push("/admin?tab=distributions");
         return;
       }
       setError(data.error || "ဖျက်၍ မရပါ။");
@@ -164,6 +190,7 @@ export default function AdminDistributionDetailPage({ params }) {
   const ended = isDistributionEnded(distribution.endDate);
   const donationIds = distribution.donationIds || [];
   const hasDonations = donationIds.length > 0;
+  const isDraft = distribution.status === "draft";
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
@@ -197,19 +224,34 @@ export default function AdminDistributionDetailPage({ params }) {
           <p className="text-sm text-gray-700 mt-1">
             {formatDate(distribution.startDate)} — {formatDate(distribution.endDate)}
           </p>
-          {ended && (
+          {isDraft && (
+            <span className="inline-block mt-2 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded">
+              မအတည်ပြုရသေး (အလှူများ မထည့်ရသေး)
+            </span>
+          )}
+          {ended && !isDraft && (
             <span className="inline-block mt-2 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded">
               ပြီးဆုံးပြီး
             </span>
           )}
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
+            {isDraft && (
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={confirming || deleting}
+                className="text-sm font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+              >
+                {confirming ? "အတည်ပြုနေသည်..." : "အတည်ပြုမည်"}
+              </button>
+            )}
             <button
               type="button"
-              onClick={handleDeleteDistribution}
-              disabled={deleting}
+              onClick={handleCancelDistribution}
+              disabled={deleting || confirming}
               className="text-sm font-medium text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
             >
-              {deleting ? "ဖျက်နေသည်..." : "ဖြန့်ဝေမှု ဖျက်မည်"}
+              {deleting ? "ဖျက်နေသည်..." : isDraft ? "ပယ်ဖျက်မည်" : "ဖြန့်ဝေမှု ဖျက်မည် (အလှူများ ပြန်သွင်းမည်)"}
             </button>
           </div>
         </div>
