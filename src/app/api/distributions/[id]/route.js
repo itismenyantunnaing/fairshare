@@ -92,6 +92,8 @@ export async function GET(req, { params }) {
         name: distribution.name || "ဖြန့်ဝေမှု",
         startDate: distribution.startDate,
         endDate: distribution.endDate,
+        donationPeriodStart: distribution.donationPeriodStart || distribution.startDate,
+        donationPeriodEnd: distribution.donationPeriodEnd || distribution.endDate,
         scheduleType: distribution.scheduleType,
         createdAt: distribution.createdAt,
       },

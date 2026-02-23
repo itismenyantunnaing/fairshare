@@ -121,7 +121,7 @@ export default function DistributionDetailPage({ params }) {
                 {SCHEDULE_LABEL[distribution.scheduleType] || distribution.scheduleType}
               </p>
               <p className="text-sm text-gray-600 mt-1">
-                {formatDate(distribution.startDate)} — {formatDate(distribution.endDate)}
+                အလှူကာလ: {formatDate(distribution.donationPeriodStart)} — {formatDate(distribution.donationPeriodEnd)}
               </p>
             </div>
             {shelterCanAddPost && shelterId && (

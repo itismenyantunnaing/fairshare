@@ -254,7 +254,7 @@ export default function AdminDistributionsSection() {
                     )}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType} · {formatDate(d.startDate)} — {formatDate(d.endDate)}
+                    {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType} · {formatDate(d.donationPeriodStart || d.startDate)} — {formatDate(d.donationPeriodEnd || d.endDate)}
                   </p>
                 </div>
                 <Link

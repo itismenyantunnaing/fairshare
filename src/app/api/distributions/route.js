@@ -33,6 +33,8 @@ export async function GET() {
         name: 1,
         startDate: 1,
         endDate: 1,
+        donationPeriodStart: 1,
+        donationPeriodEnd: 1,
         scheduleType: 1,
         createdAt: 1,
       })
@@ -46,6 +48,8 @@ export async function GET() {
         name: d.name || "ဖြန့်ဝေမှု",
         startDate: d.startDate,
         endDate: d.endDate,
+        donationPeriodStart: d.donationPeriodStart || d.startDate,
+        donationPeriodEnd: d.donationPeriodEnd || d.endDate,
         scheduleType: d.scheduleType,
         createdAt: d.createdAt,
       })),

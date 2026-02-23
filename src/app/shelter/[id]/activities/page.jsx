@@ -322,7 +322,7 @@ export default function ShelterActivitiesPage({ params }) {
                   <p className="text-sm text-gray-500 py-2">ဖြန့်ဝေမှုစာရင်း ခေါ်ယူနေသည်...</p>
                 ) : distributionsForActivity.length === 0 ? (
                   <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-                    ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ပြီးပြီ သို့မဟုတ် တင်ရန် ဖြန့်ဝေမှု မရှိသေးပါ။ (ဖြန့်ဝေမှု စတင်ရက်မှ ၇ ရက်အတွင်း တင်ရမည်)
+                    တင်ရန် ဖြန့်ဝေမှု မရှိသေးပါ။ (ဖြန့်ဝေမှု ဖန်တီးပြီး ၇ ရက်အတွင်း တင်ရမည်)
                   </p>
                 ) : (
                   <select
@@ -335,8 +335,7 @@ export default function ShelterActivitiesPage({ params }) {
                     <option value="">ဖြန့်ဝေမှု ရွေးပါ</option>
                     {distributionsForActivity.map((d) => (
                       <option key={d.id} value={d.id}>
-                        {d.name} — {formatDate(d.endDate)}
-                        {d.withinDeadline === false ? " (ရက်ကျော်)" : " (ရက်စွဲအတွင်း)"}
+                        {d.name} — နောက်ဆုံးတင်ရက်: {formatDate(d.deadlineDate || d.endDate)}
                       </option>
                     ))}
                   </select>
@@ -415,17 +414,10 @@ export default function ShelterActivitiesPage({ params }) {
               </div>
 
               {/* Form Actions */}
-              {formData.distributionId && distributionsForActivity.find((d) => d.id === formData.distributionId)?.withinDeadline === false && (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ရန် ရက်စွဲ ကျော်လွန်ပြီးဖြစ်ပါသည်။</p>
-              )}
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  disabled={
-                    submitting ||
-                    distributionsForActivity.length === 0 ||
-                    (formData.distributionId && distributionsForActivity.find((d) => d.id === formData.distributionId)?.withinDeadline === false)
-                  }
+                  disabled={submitting || distributionsForActivity.length === 0}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white py-2.5 rounded-lg text-sm font-semibold transition"
                 >
                   {submitting ? "တင်နေသည်..." : "တင်ရန်"}

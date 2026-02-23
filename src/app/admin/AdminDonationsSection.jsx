@@ -148,7 +148,7 @@ export default function AdminDonationsSection() {
 
   return (
     <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border border-gray-200 overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-6">
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
           <p className="text-sm text-gray-700">စုစုပေါင်း ပြည် (အစားအစာ အတည်ပြုပြီး): <span className="font-semibold text-gray-900">{totalFoodPyi.toLocaleString()} ပြည်</span></p>
         </div>

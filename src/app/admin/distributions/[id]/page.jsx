@@ -21,15 +21,6 @@ function formatDate(d) {
   return x.toLocaleDateString("my-MM", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function isDistributionEnded(endDate) {
-  if (!endDate) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
-  return end < today;
-}
-
 export default function AdminDistributionDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
@@ -187,7 +178,7 @@ export default function AdminDistributionDetailPage({ params }) {
     );
   }
 
-  const ended = isDistributionEnded(distribution.endDate);
+  const ended = distribution.deadlinePassed === true;
   const donationIds = distribution.donationIds || [];
   const hasDonations = donationIds.length > 0;
   const isDraft = distribution.status === "draft";
@@ -219,10 +210,20 @@ export default function AdminDistributionDetailPage({ params }) {
 
         <div className="mb-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
           <p className="text-sm text-gray-500">
-            အချိန်ဇယား: {SCHEDULE_LABEL[distribution.scheduleType] || distribution.scheduleType}
+            အလှူကာလ: {SCHEDULE_LABEL[distribution.scheduleType] || distribution.scheduleType}
+            {(distribution.donationPeriodStart || distribution.donationPeriodEnd) && (
+              <span className="ml-1 text-gray-700">
+                ({formatDate(distribution.donationPeriodStart)} — {formatDate(distribution.donationPeriodEnd)})
+              </span>
+            )}
           </p>
           <p className="text-sm text-gray-700 mt-1">
-            {formatDate(distribution.startDate)} — {formatDate(distribution.endDate)}
+            ဖန်တီးရက်: {formatDate(distribution.startDate)}
+            {distribution.deadlineDate && (
+              <span className="ml-2">
+                · နောက်ဆုံးတင်ရက်: <span className={distribution.deadlinePassed ? "text-red-600 font-medium" : "text-green-700 font-medium"}>{formatDate(distribution.deadlineDate)}</span>
+              </span>
+            )}
           </p>
           {isDraft && (
             <span className="inline-block mt-2 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded">

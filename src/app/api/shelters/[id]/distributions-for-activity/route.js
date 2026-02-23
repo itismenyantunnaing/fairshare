@@ -5,9 +5,8 @@ import { getSession } from "@/lib/auth";
 
 /**
  * GET /api/shelters/[id]/distributions-for-activity
- * List distributions this shelter is in and has not yet posted for.
- * Posting window: within one week from distribution startDate (startDate to startDate+7 days).
- * No expired date on distribution; only startDate is used for the activity deadline.
+ * List distributions this shelter is in, has not yet posted for, and is still within the 7-day posting window.
+ * startDate = distribution creation time. Deadline = startDate + 7 days.
  */
 export async function GET(req, context) {
   try {
@@ -42,12 +41,19 @@ export async function GET(req, context) {
     }
 
     const now = new Date();
-    const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+    // Posting deadline = 1 week after distribution start date (not donation duration)
+    const POSTING_DEADLINE_DAYS = 7;
+    const deadlineWindowMs = POSTING_DEADLINE_DAYS * 24 * 60 * 60 * 1000;
 
-    // All distributions this shelter is in (no expired date; distribution has no expiry)
+    // Match allocations by ObjectId or string (some docs may have string shelterId)
     const distributions = await db
       .collection("distributions")
-      .find({ "allocations.shelterId": shelterId })
+      .find({
+        $and: [
+          { $or: [{ "allocations.shelterId": shelterId }, { "allocations.shelterId": id }] },
+          { $or: [{ status: { $exists: false } }, { status: "confirmed" }] },
+        ],
+      })
       .sort({ startDate: -1 })
       .toArray();
 
@@ -64,24 +70,24 @@ export async function GET(req, context) {
 
     const postedDistributionIds = new Set(posted.map((a) => a.distributionId?.toString()).filter(Boolean));
 
-    // Only distributions not yet posted for, and within posting window: startDate <= now <= startDate+7 days
+    // Only show distributions not yet posted for AND within 7-day posting window
     const available = distributions.filter((d) => {
       if (postedDistributionIds.has(d._id.toString())) return false;
       const start = new Date(d.startDate);
-      const windowEnd = new Date(start.getTime() + oneWeekMs);
-      return now >= start && now <= windowEnd;
+      const deadlineEnd = new Date(start.getTime() + deadlineWindowMs);
+      return now >= start && now <= deadlineEnd;
     });
 
     const list = available.map((d) => {
       const start = new Date(d.startDate);
-      const windowEnd = new Date(start.getTime() + oneWeekMs);
-      const withinDeadline = now >= start && now <= windowEnd;
+      const deadlineEnd = new Date(start.getTime() + deadlineWindowMs);
       return {
         id: d._id.toString(),
         name: d.name || `ဖြန့်ဝေမှု (${d.scheduleType || "custom"})`,
         startDate: d.startDate,
         endDate: d.endDate,
-        withinDeadline,
+        deadlineDate: deadlineEnd.toISOString(),
+        withinDeadline: true,
       };
     });
 

@@ -103,7 +103,7 @@ export default function DistributionsListPage() {
                       {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType}
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
-                      {formatDate(d.startDate)} — {formatDate(d.endDate)}
+                      အလှူကာလ: {formatDate(d.donationPeriodStart)} — {formatDate(d.donationPeriodEnd)}
                     </p>
                   </div>
                   <span className="text-blue-600 text-sm font-medium flex-shrink-0">

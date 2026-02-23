@@ -48,12 +48,15 @@ export async function GET(req, { params }) {
       .project({ shelterId: 1, createdAt: 1 })
       .toArray();
 
+    const toIdStr = (x) => (x == null ? "" : typeof x.toString === "function" ? x.toString() : String(x));
+
     const startDate = distribution.startDate ? new Date(distribution.startDate) : null;
+    // Posting deadline = 1 week after distribution start date (not donation duration)
     const deadlineEnd = startDate ? new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null;
 
     const activityByShelter = {};
     activitiesForDist.forEach((act) => {
-      const sid = act.shelterId?.toString?.();
+      const sid = toIdStr(act.shelterId);
       if (!sid) return;
       const withinDeadline = startDate && deadlineEnd && act.createdAt
         ? new Date(act.createdAt) >= startDate && new Date(act.createdAt) <= deadlineEnd
@@ -62,7 +65,7 @@ export async function GET(req, { params }) {
     });
 
     const allocationsWithActivity = (distribution.allocations || []).map((a) => {
-      const sidStr = a.shelterId?.toString?.();
+      const sidStr = toIdStr(a.shelterId);
       const status = activityByShelter[sidStr] || { posted: false, withinDeadline: false };
       return {
         ...a,
@@ -102,6 +105,7 @@ export async function GET(req, { params }) {
         createdBy: distribution.createdBy?.toString(),
         allocations: allocationsWithActivity,
         deadlinePassed,
+        deadlineDate: deadlineEnd ? deadlineEnd.toISOString() : null,
         activities: activitiesForClient,
       },
     });

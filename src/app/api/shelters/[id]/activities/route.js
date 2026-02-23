@@ -172,8 +172,16 @@ export async function POST(req, { params }) {
       );
     }
 
+    if (distribution.status === "draft") {
+      return NextResponse.json(
+        { success: false, error: "ဤဖြန့်ဝေမှု မအတည်ပြုရသေးပါ။ အတည်ပြုပြီးမှ လှုပ်ရှားမှု တင်နိုင်ပါသည်။" },
+        { status: 400 }
+      );
+    }
+
+    const toIdStr = (x) => (x == null ? "" : typeof x.toString === "function" ? x.toString() : String(x));
     const inAllocations = (distribution.allocations || []).some(
-      (a) => a.shelterId && a.shelterId.toString() === id
+      (a) => toIdStr(a.shelterId) === id
     );
     if (!inAllocations) {
       return NextResponse.json(
@@ -184,16 +192,16 @@ export async function POST(req, { params }) {
 
     const now = new Date();
     const startDate = new Date(distribution.startDate);
-    const windowEnd = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const deadlineEnd = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
     if (now < startDate) {
       return NextResponse.json(
-        { success: false, error: "ဤဖြန့်ဝေမှု စတင်ရက် မတိုင်သေးပါ။ စတင်ရက်မှ ၇ ရက်အတွင်း လှုပ်ရှားမှု တင်ရမည်။" },
+        { success: false, error: "ဤဖြန့်ဝေမှု စတင်ရက် မတိုင်သေးပါ။" },
         { status: 400 }
       );
     }
-    if (now > windowEnd) {
+    if (now > deadlineEnd) {
       return NextResponse.json(
-        { success: false, error: "ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ရန် ရက်စွဲ ကျော်လွန်ပြီးဖြစ်ပါသည်။ (စတင်ရက်မှ ၇ ရက်အတွင်း တင်ရမည်)" },
+        { success: false, error: "ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု တင်ရန် ရက်စွဲ ကျော်လွန်ပြီးဖြစ်ပါသည်။ (ဖြန့်ဝေမှုဖန်တီးပြီး ၇ ရက်အတွင်း တင်ရမည်)" },
         { status: 400 }
       );
     }

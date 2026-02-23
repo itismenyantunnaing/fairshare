@@ -375,13 +375,16 @@ export async function POST(req) {
       };
     });
 
+    const creationTime = new Date();
     const doc = {
       scheduleType,
-      startDate: startD,
+      donationPeriodStart: startD,
+      donationPeriodEnd: endD,
+      startDate: creationTime,
       endDate: endD,
       name: name && String(name).trim() ? String(name).trim() : null,
       createdBy: new ObjectId(session.id),
-      createdAt: new Date(),
+      createdAt: creationTime,
       status: "draft",
       donationIds,
       allocations,
