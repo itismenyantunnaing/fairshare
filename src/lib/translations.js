@@ -4,7 +4,7 @@
 export const translations = {
   my: {
     nav: {
-      shelters: "ခိုလှုံရာအိမ်များ",
+      shelters: "ဂေဟာများ",
       donors: "အလှူရှင်များ",
       donate: "အလှူငွေ",
       manage: "စီမံခန့်ခွဲရန်",

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useToast } from "@/context/ToastContext";
 
 const STATUS_TABS = [
   { key: "pending", label: "စိစစ်ရန်" },
@@ -22,7 +23,8 @@ const STATUS_LABELS = {
   rejected: "ငြင်းပယ်ပြီး",
 };
 
-export default function AdminHostelsSection() {
+export default function AdminHostelsSection({ hostelsPending = 0, hostelsApproved = 0, hostelsAutoRejected = 0, onCountsChange }) {
+  const { showToast } = useToast();
   const [hostels, setHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("pending");
@@ -31,6 +33,9 @@ export default function AdminHostelsSection() {
   const [actionLoading, setActionLoading] = useState(null);
   const [reviewNote, setReviewNote] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [hostelPage, setHostelPage] = useState(1);
+
+  const PER_PAGE = 12;
 
   const fetchHostels = useCallback(async () => {
     setLoading(true);
@@ -39,6 +44,7 @@ export default function AdminHostelsSection() {
       const data = await res.json();
       if (data.success) {
         setHostels(data.hostels);
+        onCountsChange?.();
       }
     } catch (error) {
       console.error("Error fetching hostels:", error);
@@ -50,6 +56,10 @@ export default function AdminHostelsSection() {
   useEffect(() => {
     fetchHostels();
   }, [fetchHostels]);
+
+  useEffect(() => {
+    setHostelPage(1);
+  }, [searchQuery]);
 
   const viewDetails = async (id) => {
     setDetailLoading(true);
@@ -76,23 +86,23 @@ export default function AdminHostelsSection() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message);
+        showToast(data.message, "success");
         setSelectedHostel(null);
         setReviewNote("");
         fetchHostels();
       } else {
-        alert(data.error || "လုပ်ဆောင်ချက် မအောင်မြင်ပါ");
+        showToast(data.error || "လုပ်ဆောင်ချက် မအောင်မြင်ပါ", "error");
       }
     } catch (error) {
       console.error("Error performing action:", error);
-      alert("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။");
+      showToast("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။", "error");
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("ဤခိုလှုံရာအိမ်ကို အပြီးတိုင် ဖျက်ပစ်လိုသည်မှာ သေချာပါသလား?")) {
+    if (!confirm("ဤဂေဟာကို အပြီးတိုင် ဖျက်ပစ်လိုသည်မှာ သေချာပါသလား?")) {
       return;
     }
     setActionLoading("delete");
@@ -102,15 +112,15 @@ export default function AdminHostelsSection() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message);
+        showToast(data.message, "success");
         setSelectedHostel(null);
         fetchHostels();
       } else {
-        alert(data.error || "ဖျက်ခြင်း မအောင်မြင်ပါ");
+        showToast(data.error || "ဖျက်ခြင်း မအောင်မြင်ပါ", "error");
       }
     } catch (error) {
       console.error("Error deleting hostel:", error);
-      alert("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။");
+      showToast("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။", "error");
     } finally {
       setActionLoading(null);
     }
@@ -139,10 +149,13 @@ export default function AdminHostelsSection() {
     );
   });
 
+  const totalHostelPages = Math.max(1, Math.ceil(filteredHostels.length / PER_PAGE));
+  const paginatedHostels = filteredHostels.slice((hostelPage - 1) * PER_PAGE, hostelPage * PER_PAGE);
+
   return (
     <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+        <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
             {STATUS_TABS.map((tab) => (
               <button
@@ -150,6 +163,7 @@ export default function AdminHostelsSection() {
                 onClick={() => {
                   setActiveTab(tab.key);
                   setSelectedHostel(null);
+                  setHostelPage(1);
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition ${
                   activeTab === tab.key
@@ -179,7 +193,7 @@ export default function AdminHostelsSection() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ခိုလှုံရာအိမ် ရှာဖွေရန်..."
+              placeholder="ဂေဟာ ရှာဖွေရန်..."
               className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64"
             />
             {searchQuery && (
@@ -194,13 +208,18 @@ export default function AdminHostelsSection() {
             )}
           </div>
         </div>
+        <div className="flex items-center gap-6 mb-6 text-sm text-gray-600 flex-wrap">
+          <span>စိစစ်ရန်: <strong className="text-amber-700">{hostelsPending}</strong> ဂေဟာ</span>
+          <span>အတည်ပြုပြီး: <strong className="text-green-700">{hostelsApproved}</strong> ဂေဟာ</span>
+          <span>AI ငြင်းပယ်: <strong className="text-orange-700">{hostelsAutoRejected}</strong> ဂေဟာ</span>
+        </div>
 
         <div className="flex gap-6">
           <div className="flex-1 min-w-0">
             {loading ? (
               <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
                 <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">ခိုလှုံရာအိမ်များ ခေါ်ယူနေသည်...</p>
+                <p className="text-gray-500 text-sm">ဂေဟာများ ခေါ်ယူနေသည်...</p>
               </div>
             ) : filteredHostels.length === 0 ? (
               <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -210,22 +229,23 @@ export default function AdminHostelsSection() {
                   </p>
                 ) : (
                   <p className="text-gray-400 text-sm">
-                    &quot;{STATUS_LABELS[activeTab]}&quot; အခြေအနေရှိ ခိုလှုံရာအိမ် မရှိပါ
+                    &quot;{STATUS_LABELS[activeTab]}&quot; အခြေအနေရှိ ဂေဟာ မရှိပါ
                   </p>
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredHostels.map((hostel) => (
-                  <div
-                    key={hostel._id}
-                    onClick={() => viewDetails(hostel._id)}
-                    className={`bg-white rounded-xl border p-5 cursor-pointer transition hover:shadow-md ${
-                      selectedHostel?._id === hostel._id
-                        ? "border-blue-400 ring-2 ring-blue-100"
-                        : "border-gray-200"
-                    }`}
-                  >
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedHostels.map((hostel) => (
+                    <div
+                      key={hostel._id}
+                      onClick={() => viewDetails(hostel._id)}
+                      className={`bg-white rounded-xl border p-5 cursor-pointer transition hover:shadow-md ${
+                        selectedHostel?._id === hostel._id
+                          ? "border-blue-400 ring-2 ring-blue-100"
+                          : "border-gray-200"
+                      }`}
+                    >
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-gray-900 truncate">
@@ -300,28 +320,67 @@ export default function AdminHostelsSection() {
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+
+                {totalHostelPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between flex-wrap gap-3">
+                    <p className="text-sm text-gray-500">
+                      စာမျက်နှာ {hostelPage} / {totalHostelPages} (စုစုပေါင်း {filteredHostels.length} ခု)
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setHostelPage((p) => Math.max(1, p - 1))}
+                        disabled={hostelPage <= 1}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ရှေ့
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHostelPage((p) => Math.min(totalHostelPages, p + 1))}
+                        disabled={hostelPage >= totalHostelPages}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        နောက်
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
+          {/* Hostel detail modal */}
           {selectedHostel && (
-            <div className="w-[480px] flex-shrink-0">
-              <div className="bg-white rounded-xl border border-gray-200 sticky top-24 overflow-hidden">
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+              onClick={() => setSelectedHostel(null)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="hostel-detail-title"
+            >
+              <div
+                className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {detailLoading ? (
                   <div className="p-12 text-center">
                     <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
                   </div>
                 ) : (
                   <>
-                    <div className="p-5 border-b border-gray-100">
+                    <div className="p-5 border-b border-gray-100 flex-shrink-0">
                       <div className="flex items-start justify-between">
-                        <h3 className="font-semibold text-gray-900 text-lg">
+                        <h3 id="hostel-detail-title" className="font-semibold text-gray-900 text-lg">
                           {selectedHostel.hostelName}
                         </h3>
                         <button
+                          type="button"
                           onClick={() => setSelectedHostel(null)}
-                          className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                          className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-1"
+                          aria-label="ပိတ်ရန်"
                         >
                           &times;
                         </button>
@@ -336,7 +395,7 @@ export default function AdminHostelsSection() {
                       </span>
                     </div>
 
-                    <div className="p-5 space-y-4">
+                    <div className="p-5 space-y-4 overflow-y-auto flex-1">
                       <div>
                         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">လိပ်စာ</p>
                         <p className="text-sm text-gray-700 mt-0.5">
@@ -361,7 +420,7 @@ export default function AdminHostelsSection() {
                           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">လက်မှတ် ပုံ</p>
                           <img
                             src={selectedHostel.licenseImageUrl}
-                            alt="ခိုလှုံရာအိမ် လက်မှတ်"
+                            alt="ဂေဟာ လက်မှတ်"
                             className="w-full rounded-lg border border-gray-200"
                           />
                         </div>
@@ -526,7 +585,7 @@ export default function AdminHostelsSection() {
                             {actionLoading === "delete" ? "ဖျက်နေသည်..." : "အပြီးတိုင် ဖျက်ပစ်ရန်"}
                           </button>
                           <p className="text-xs text-gray-400 mt-2 text-center">
-                            ဤလုပ်ဆောင်ချက်သည် ခိုလှုံရာအိမ်ကို ဒေတာဘေ့စ်မှ အပြီးတိုင် ဖယ်ရှားပါမည်။
+                            ဤလုပ်ဆောင်ချက်သည် ဂေဟာကို ဒေတာဘေ့စ်မှ အပြီးတိုင် ဖယ်ရှားပါမည်။
                           </p>
                         </div>
                       )}

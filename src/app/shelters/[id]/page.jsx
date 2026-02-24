@@ -2,16 +2,18 @@
 import { useState, useEffect, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export default function PublicShelterPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [shelter, setShelter] = useState(null);
   const [activities, setActivities] = useState([]);
   const [reliabilityScore, setReliabilityScore] = useState({ given: 0, total: 0 });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const hasLoadedOnce = useRef(false);
 
   // Auth check - only logged in users can view
@@ -41,7 +43,8 @@ export default function PublicShelterPage({ params }) {
       if (shelterData.success) {
         setShelter(shelterData.shelter);
       } else {
-        setError(shelterData.error);
+        showToast(shelterData.error, "error");
+        setLoadFailed(true);
         setLoading(false);
         return;
       }
@@ -54,7 +57,8 @@ export default function PublicShelterPage({ params }) {
       }
       hasLoadedOnce.current = true;
     } catch (err) {
-      setError("ခိုလှုံရာအိမ် အချက်အလက် ခေါ်ယူ၍ မရပါ။");
+      showToast("ဂေဟာ အချက်အလက် ခေါ်ယူ၍ မရပါ။", "error");
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -102,13 +106,13 @@ export default function PublicShelterPage({ params }) {
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-500">ခိုလှုံရာအိမ် အချက်အလက် ခေါ်ယူနေသည်...</p>
+          <p className="text-gray-500">ဂေဟာ အချက်အလက် ခေါ်ယူနေသည်...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !shelter) {
+  if (loadFailed || !shelter) {
     return (
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
@@ -117,13 +121,13 @@ export default function PublicShelterPage({ params }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">ခိုလှုံရာအိမ် မတွေ့ပါ</h2>
-          <p className="text-gray-500 text-sm">{error || "ဤခိုလှုံရာအိမ်ကို ရှာမတွေ့ပါ သို့မဟုတ် အတည်မပြုရသေးပါ။"}</p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">ဂေဟာ မတွေ့ပါ</h2>
+          <p className="text-gray-500 text-sm">ဤဂေဟာကို ရှာမတွေ့ပါ သို့မဟုတ် အတည်မပြုရသေးပါ။ မှတ်ချက်ကို ညာဘက် အနားမှ ကြည့်ပါ။</p>
           <Link
             href="/shelters"
             className="inline-block mt-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
           >
-            ခိုလှုံရာအိမ်များသို့ ပြန်သွားရန်
+            ဂေဟာများသို့ ပြန်သွားရန်
           </Link>
         </div>
       </div>
@@ -143,7 +147,7 @@ export default function PublicShelterPage({ params }) {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          ခိုလှုံရာအိမ်များသို့ ပြန်သွားရန်
+          ဂေဟာများသို့ ပြန်သွားရန်
         </Link>
 
         {/* Header */}
@@ -215,7 +219,7 @@ export default function PublicShelterPage({ params }) {
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">အခြေခံ အချက်အလက်များ</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoField label="ခိုလှုံရာအိမ် အမည်" value={shelter.hostelName} />
+                <InfoField label="ဂေဟာ အမည်" value={shelter.hostelName} />
                 <InfoField label="မြို့" value={shelter.city} />
                 <InfoField label="လိပ်စာ" value={shelter.address} />
                 <InfoField label="ဖုန်းနံပါတ်" value={shelter.phone} />
@@ -258,43 +262,36 @@ export default function PublicShelterPage({ params }) {
               <p className="text-gray-500 text-sm">မှတ်တမ်းတင်ထားသော လှုပ်ရှားမှု မရှိသေးပါ</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {activities.slice(0, 5).map((activity) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activities.map((activity) => (
                 <Link
                   key={activity._id}
                   href={`/activities/${activity._id}`}
                   className="block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:border-blue-200 hover:shadow-md transition"
                 >
-                  <div className="flex">
-                    {/* Thumbnail */}
-                    {activity.images?.[0] && (
-                      <div className="w-32 h-24 flex-shrink-0">
-                        <img
-                          src={activity.images[0]}
-                          alt={activity.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="p-4 flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                          {activity.distributionName}
-                        </span>
-                        <span className="text-xs text-gray-400">{formatDate(activity.createdAt)}</span>
-                      </div>
-                      <h3 className="font-medium text-gray-900 truncate">{activity.title}</h3>
-                      <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{activity.description}</p>
+                  {activity.images?.[0] ? (
+                    <div className="h-40 bg-gray-100 overflow-hidden">
+                      <img
+                        src={activity.images[0]}
+                        alt={activity.title}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
+                  ) : (
+                    <div className="h-40 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">ပုံ မရှိပါ</div>
+                  )}
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                        {activity.distributionName}
+                      </span>
+                      <span className="text-xs text-gray-400">{formatDate(activity.createdAt)}</span>
+                    </div>
+                    <h3 className="font-medium text-gray-900 truncate">{activity.title}</h3>
+                    <p className="text-sm text-gray-500 line-clamp-2 mt-0.5">{activity.description}</p>
                   </div>
                 </Link>
               ))}
-
-              {activities.length > 5 && (
-                <p className="text-center text-sm text-gray-400">
-                  နောက်ထပ် လှုပ်ရှားမှု {activities.length - 5} ခု ရှိပါသေးသည်
-                </p>
-              )}
             </div>
           )}
         </div>

@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
+        { success: false, error: "ဂေဟာ ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
       );
     }
@@ -36,7 +36,7 @@ export async function GET(req, { params }) {
 
     if (!shelter) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် မတွေ့ပါ" },
+        { success: false, error: "ဂေဟာ မတွေ့ပါ" },
         { status: 404 }
       );
     }
@@ -117,7 +117,7 @@ export async function POST(req, { params }) {
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
+        { success: false, error: "ဂေဟာ ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
       );
     }
@@ -132,7 +132,7 @@ export async function POST(req, { params }) {
 
     if (!shelter) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် မတွေ့ပါ" },
+        { success: false, error: "ဂေဟာ မတွေ့ပါ" },
         { status: 404 }
       );
     }
@@ -185,7 +185,7 @@ export async function POST(req, { params }) {
     );
     if (!inAllocations) {
       return NextResponse.json(
-        { success: false, error: "သင့်ခိုလှုံရာအိမ်သည် ဤဖြန့်ဝေမှုတွင် ပါဝင်မထားပါ။" },
+        { success: false, error: "သင့်ဂေဟာသည် ဤဖြန့်ဝေမှုတွင် ပါဝင်မထားပါ။" },
         { status: 400 }
       );
     }

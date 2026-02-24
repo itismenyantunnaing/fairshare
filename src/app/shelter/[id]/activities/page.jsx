@@ -3,11 +3,13 @@ import { useState, useEffect, useRef, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { uploadImageToCloudinary } from "@/lib/uploadClient";
+import { useToast } from "@/context/ToastContext";
 
 export default function ShelterActivitiesPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [activities, setActivities] = useState([]);
@@ -15,8 +17,6 @@ export default function ShelterActivitiesPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   const imageInputRef = useRef(null);
 
@@ -71,28 +71,13 @@ export default function ShelterActivitiesPage({ params }) {
           setReliabilityScore(data.reliabilityScore);
         }
       } catch (err) {
-        setError("လှုပ်ရှားမှုများ ခေါ်ယူ၍ မရပါ။");
+        showToast("လှုပ်ရှားမှုများ ခေါ်ယူ၍ မရပါ။", "error");
       } finally {
         setLoading(false);
       }
     };
     fetchActivities();
   }, [id, authChecked]);
-
-  // Auto-dismiss messages
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
 
   // Fetch distributions available for posting on load (shelter owner) so we can hide Add button when none left
   useEffect(() => {
@@ -143,7 +128,7 @@ export default function ShelterActivitiesPage({ params }) {
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     if (images.length + files.length > 10) {
-      setError("ဓာတ်ပုံ အများဆုံး ၁၀ ပုံသာ တင်နိုင်ပါသည်။");
+      showToast("ဓာတ်ပုံ အများဆုံး ၁၀ ပုံသာ တင်နိုင်ပါသည်။", "error");
       return;
     }
 
@@ -161,7 +146,6 @@ export default function ShelterActivitiesPage({ params }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setError(null);
 
     try {
       // Upload images to Cloudinary
@@ -192,7 +176,7 @@ export default function ShelterActivitiesPage({ params }) {
 
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message);
+        showToast(data.message, "success");
         setShowForm(false);
         setFormData({ distributionId: "", title: "", description: "" });
         setImages([]);
@@ -210,10 +194,10 @@ export default function ShelterActivitiesPage({ params }) {
           setDistributionsForActivity(distData.distributions || []);
         }
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch (err) {
-      setError(err.message || "လှုပ်ရှားမှု တင်၍ မရပါ။");
+      showToast(err.message || "လှုပ်ရှားမှု တင်၍ မရပါ။", "error");
     } finally {
       setSubmitting(false);
     }
@@ -227,12 +211,12 @@ export default function ShelterActivitiesPage({ params }) {
       const data = await res.json();
       if (data.success) {
         setActivities((prev) => prev.filter((a) => a._id !== activityId));
-        setSuccess(data.message);
+        showToast(data.message, "success");
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch (err) {
-      setError("ဖျက်၍ မရပါ။");
+      showToast("ဖျက်၍ မရပါ။", "error");
     }
   };
 
@@ -284,17 +268,6 @@ export default function ShelterActivitiesPage({ params }) {
         </div>
 
         {/* Messages */}
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-green-800 font-medium">{success}</p>
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-red-800 font-medium">{error}</p>
-          </div>
-        )}
-
         {/* Add Activity Button - Only for owner when there are distributions left to post */}
         {isOwner && !showForm && distributionsForActivityChecked && distributionsForActivity.length > 0 && (
           <button
@@ -451,66 +424,48 @@ export default function ShelterActivitiesPage({ params }) {
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activities.map((activity) => (
               <div
                 key={activity._id}
                 className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
               >
-                {/* Activity Images */}
-                {activity.images?.length > 0 && (
-                  <div className="h-48 bg-gray-100 overflow-hidden">
+                {activity.images?.length > 0 ? (
+                  <div className="h-40 bg-gray-100 overflow-hidden">
                     <img
                       src={activity.images[0]}
                       alt={activity.title}
                       className="w-full h-full object-cover"
                     />
                   </div>
+                ) : (
+                  <div className="h-40 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">ပုံ မရှိပါ</div>
                 )}
 
-                <div className="p-5">
-                  {/* Distribution Badge */}
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-1">
                     <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
                       {activity.distributionName}
                     </span>
                     {activity.distributionDate && (
-                      <span className="text-xs text-gray-400">
-                        {formatDate(activity.distributionDate)}
-                      </span>
+                      <span className="text-xs text-gray-400">{formatDate(activity.distributionDate)}</span>
                     )}
                   </div>
-
-                  {/* Title & Description */}
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{activity.title}</h3>
+                  <h3 className="font-semibold text-gray-900 mb-1">{activity.title}</h3>
                   <p className="text-sm text-gray-600 line-clamp-3">{activity.description}</p>
-
-                  {/* Meta Info */}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-4 text-xs text-gray-400">
-                      {activity.images?.length > 0 && (
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          {activity.images.length} ပုံ
-                        </span>
-                      )}
-                      <span>{formatDate(activity.createdAt)}</span>
-                    </div>
-
-                    {/* Actions */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
+                    <span>{activity.images?.length > 0 ? `${activity.images.length} ပုံ · ` : ""}{formatDate(activity.createdAt)}</span>
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/activities/${activity._id}`}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-blue-600 hover:text-blue-800 font-medium"
                       >
-                        အပြည့်အစုံ ကြည့်ရန်
+                        ကြည့်ရန်
                       </Link>
                       {isOwner && (
                         <button
-                          onClick={() => handleDelete(activity._id)}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium ml-2"
+                          onClick={(e) => { e.preventDefault(); handleDelete(activity._id); }}
+                          className="text-red-500 hover:text-red-700 font-medium"
                         >
                           ဖျက်ရန်
                         </button>

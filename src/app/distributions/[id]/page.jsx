@@ -107,7 +107,7 @@ export default function DistributionDetailPage({ params }) {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <Link href="/distributions" className="text-sm text-gray-600 hover:text-gray-900 mb-2 inline-block">
             ← ဖြန့်ဝေမှုများ
@@ -147,67 +147,41 @@ export default function DistributionDetailPage({ params }) {
             <p className="text-gray-500">ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု မရှိသေးပါ။</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activities.map((activity) => (
-              <div
+              <Link
                 key={activity.id}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                href={`/activities/${activity.id}`}
+                className="block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:border-blue-200 hover:shadow-md transition"
               >
-                {activity.images?.length > 0 && (
-                  <div className="h-48 bg-gray-100 overflow-hidden">
+                {activity.images?.length > 0 ? (
+                  <div className="h-40 bg-gray-100 overflow-hidden">
                     <img
                       src={activity.images[0]}
                       alt={activity.title}
                       className="w-full h-full object-cover"
                     />
                   </div>
+                ) : (
+                  <div className="h-40 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">ပုံ မရှိပါ</div>
                 )}
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-1">
                     <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
                       {activity.shelterName}
                     </span>
                     {activity.distributionDate && (
-                      <span className="text-xs text-gray-400">
-                        {formatDate(activity.distributionDate)}
-                      </span>
+                      <span className="text-xs text-gray-400">{formatDate(activity.distributionDate)}</span>
                     )}
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{activity.title}</h3>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{activity.description}</p>
-                  <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
-                    {activity.images?.length > 0 && (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {activity.images.length} ပုံ
-                      </span>
-                    )}
+                  <h3 className="font-semibold text-gray-900 mb-1">{activity.title}</h3>
+                  <p className="text-sm text-gray-600 line-clamp-3">{activity.description}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                    {activity.images?.length > 0 && <span>{activity.images.length} ပုံ</span>}
                     <span>{formatDate(activity.createdAt)}</span>
                   </div>
-                  {activity.images && activity.images.length > 1 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3">
-                      {activity.images.slice(1, 6).map((img, idx) => (
-                        <a
-                          key={idx}
-                          href={img}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block aspect-square rounded-lg overflow-hidden border border-gray-200"
-                        >
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                        </a>
-                      ))}
-                      {activity.images.length > 6 && (
-                        <span className="flex items-center justify-center text-xs text-gray-500">
-                          +{activity.images.length - 6} ပုံ
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

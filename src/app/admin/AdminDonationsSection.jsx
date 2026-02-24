@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { uploadImageToCloudinary } from "@/lib/uploadClient";
+import { useToast } from "@/context/ToastContext";
 
 const TABS = [
   { key: "pending", label: "စိစစ်ရန်" },
@@ -41,7 +42,8 @@ function donationSummary(d) {
   return items.map(i => `${i.label || ITEM_LABEL[i.type] || i.type} ×${i.quantity}`).join(", ");
 }
 
-export default function AdminDonationsSection() {
+export default function AdminDonationsSection({ donationsPending = 0, donationsApproved = 0, onCountsChange }) {
+  const { showToast } = useToast();
   const [donations, setDonations] = useState([]);
   const [totalFoodPyi, setTotalFoodPyi] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,10 @@ export default function AdminDonationsSection() {
   const [rejectNote, setRejectNote] = useState("");
   const [certificateFile, setCertificateFile] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [donationPage, setDonationPage] = useState(1);
   const certInputRef = useRef(null);
+
+  const PER_PAGE = 12;
 
   const fetchDonations = async () => {
     setLoading(true);
@@ -61,6 +66,7 @@ export default function AdminDonationsSection() {
       if (data.success) {
         setDonations(data.donations);
         setTotalFoodPyi(data.totalFoodPyi ?? 0);
+        onCountsChange?.();
       }
     } catch (err) {
       console.error(err);
@@ -73,6 +79,10 @@ export default function AdminDonationsSection() {
     fetchDonations();
   }, [activeTab]);
 
+  useEffect(() => {
+    setDonationPage(1);
+  }, [searchQuery]);
+
   const approveDonation = async (donation, certificateUrl = null, fromDetail = false) => {
     if (!donation?.id) return;
     setActionLoading(fromDetail ? "approve" : donation.id);
@@ -84,23 +94,23 @@ export default function AdminDonationsSection() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message);
+        showToast(data.message, "success");
         if (selectedDonation?.id === donation.id) setSelectedDonation(null);
         setCertificateFile(null);
         fetchDonations();
-      } else alert(data.error || "အတည်ပြု၍ မရပါ");
-    } catch { alert("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။"); }
+      } else showToast(data.error || "အတည်ပြု၍ မရပါ", "error");
+    } catch { showToast("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။", "error"); }
     finally { setActionLoading(null); }
   };
 
   const handleApprove = async () => {
     if (!selectedDonation) return;
     if (!certificateFile) {
-      alert("အတည်ပြုရန် လက်မှတ် ဓာတ်ပုံ ထည့်သွင်းရပါမည်။");
+      showToast("အတည်ပြုရန် လက်မှတ် ဓာတ်ပုံ ထည့်သွင်းရပါမည်။", "error");
       return;
     }
     const uploadResult = await uploadImageToCloudinary(certificateFile, "donations/certificates");
-    if (uploadResult.error) { alert(uploadResult.error); return; }
+    if (uploadResult.error) { showToast(uploadResult.error, "error"); return; }
     await approveDonation(selectedDonation, uploadResult.url, true);
   };
 
@@ -114,9 +124,9 @@ export default function AdminDonationsSection() {
         body: JSON.stringify({ action: "reject", note: rejectNote }),
       });
       const data = await res.json();
-      if (data.success) { alert(data.message); setSelectedDonation(null); setRejectNote(""); fetchDonations(); }
-      else alert(data.error || "ငြင်းပယ်၍ မရပါ");
-    } catch { alert("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။"); }
+      if (data.success) { showToast(data.message, "success"); setSelectedDonation(null); setRejectNote(""); fetchDonations(); }
+      else showToast(data.error || "ငြင်းပယ်၍ မရပါ", "error");
+    } catch { showToast("ကွန်ရက်ချို့ယွင်းချက်။ ထပ်မံကြိုးစားပါ။", "error"); }
     finally { setActionLoading(null); }
   };
 
@@ -125,9 +135,9 @@ export default function AdminDonationsSection() {
     try {
       const res = await fetch(`/api/admin/donations/${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (data.success) { setSelectedDonation(null); fetchDonations(); }
-      else alert(data.error || "ဖျက်၍ မရပါ");
-    } catch { alert("ကွန်ရက်ချို့ယွင်းချက်။"); }
+      if (data.success) { showToast("အလှူ ဖျက်ပြီးပါပြီ။", "success"); setSelectedDonation(null); fetchDonations(); }
+      else showToast(data.error || "ဖျက်၍ မရပါ", "error");
+    } catch { showToast("ကွန်ရက်ချို့ယွင်းချက်။", "error"); }
   };
 
   const formatDate = (d) =>
@@ -143,23 +153,29 @@ export default function AdminDonationsSection() {
     return name.includes(q) || email.includes(q) || summary.includes(q) || category.includes(q);
   });
 
+  const totalDonationPages = Math.max(1, Math.ceil(filteredDonations.length / PER_PAGE));
+  const paginatedDonations = filteredDonations.slice((donationPage - 1) * PER_PAGE, donationPage * PER_PAGE);
+
   const sd = selectedDonation;
   const sdCat = sd?.category || "money";
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 py-6">
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
           <p className="text-sm text-gray-700">စုစုပေါင်း ပြည် (အစားအစာ အတည်ပြုပြီး): <span className="font-semibold text-gray-900">{totalFoodPyi.toLocaleString()} ပြည်</span></p>
         </div>
 
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === tab.key ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"}`}
+                type="button"
+                onClick={() => { setActiveTab(tab.key); setDonationPage(1); }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                  activeTab === tab.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
               >
                 {tab.label}
               </button>
@@ -179,7 +195,7 @@ export default function AdminDonationsSection() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="အလှူ / အမည် / အီးမေးလ် ရှာဖွေရန်..."
-              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64 bg-white"
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64"
             />
             {searchQuery && (
               <button
@@ -194,62 +210,104 @@ export default function AdminDonationsSection() {
             )}
           </div>
         </div>
+        <div className="flex items-center gap-6 mb-6 text-sm text-gray-600">
+          <span>စိစစ်ရန်: <strong className="text-amber-700">{donationsPending}</strong> အလှူ</span>
+          <span>အတည်ပြုပြီး: <strong className="text-green-700">{donationsApproved}</strong> အလှူ</span>
+        </div>
 
         {loading ? (
           <div className="flex justify-center py-12"><div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+        ) : filteredDonations.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-500">
+            {searchQuery
+              ? `"${searchQuery}" အတွက် ရလဒ်မရှိပါ။`
+              : "ဤအမျိုးအစားတွင် အလှူ မရှိသေးပါ။"}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className={sd ? "lg:col-span-2" : "lg:col-span-3"}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {filteredDonations.map((d) => {
-                  const cat = d.category || "money";
-                  return (
-                    <div key={d.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200 transition">
-                      <div className="flex justify-between items-start">
-                        <div className="cursor-pointer flex-1 min-w-0" onClick={() => setSelectedDonation(d)}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-base">{CATEGORY_ICON[cat]}</span>
-                            <span className="text-xs font-medium text-gray-500">{CATEGORY_LABEL[cat]}</span>
-                          </div>
-                          <p className="font-semibold text-gray-900 text-sm">{donationSummary(d)}</p>
-                          <p className="text-sm text-gray-500 truncate">{d.name}</p>
-                          <p className="text-xs text-gray-400">{d.email}</p>
-                          <p className="text-xs text-gray-400 mt-1">{formatDate(d.createdAt)}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedDonations.map((d) => {
+                const cat = d.category || "money";
+                return (
+                  <div key={d.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200 transition">
+                    <div className="flex justify-between items-start">
+                      <div className="cursor-pointer flex-1 min-w-0" onClick={() => setSelectedDonation(d)}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-base">{CATEGORY_ICON[cat]}</span>
+                          <span className="text-xs font-medium text-gray-500">{CATEGORY_LABEL[cat]}</span>
                         </div>
-                        <div className="flex flex-col gap-1 flex-shrink-0 ml-2">
-                          {activeTab === "pending" && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedDonation(d); }}
-                              className="text-green-600 hover:text-green-700 text-sm font-medium px-2 py-1 rounded bg-green-50 hover:bg-green-100"
-                            >
-                              အတည်ပြုရန် (အသေးစိတ်)
-                            </button>
-                          )}
-                          {activeTab === "rejected" && (
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="text-red-500 hover:text-red-700 text-sm font-medium">ဖျက်ရန်</button>
-                          )}
-                        </div>
+                        <p className="font-semibold text-gray-900 text-sm">{donationSummary(d)}</p>
+                        <p className="text-sm text-gray-500 truncate">{d.name}</p>
+                        <p className="text-xs text-gray-400">{d.email}</p>
+                        <p className="text-xs text-gray-400 mt-1">{formatDate(d.createdAt)}</p>
+                      </div>
+                      <div className="flex flex-col gap-1 flex-shrink-0 ml-2">
+                        {activeTab === "pending" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSelectedDonation(d); }}
+                            className="text-green-600 hover:text-green-700 text-sm font-medium px-2 py-1 rounded bg-green-50 hover:bg-green-100"
+                          >
+                            အတည်ပြုရန် (အသေးစိတ်)
+                          </button>
+                        )}
+                        {activeTab === "rejected" && (
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="text-red-500 hover:text-red-700 text-sm font-medium">ဖျက်ရန်</button>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              {(filteredDonations.length === 0) && (
-                <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-500">
-                  {searchQuery
-                    ? `"${searchQuery}" အတွက် ရလဒ်မရှိပါ။`
-                    : "ဤအမျိုးအစားတွင် အလှူ မရှိသေးပါ။"}
-                </div>
-              )}
+                  </div>
+                );
+              })}
             </div>
 
-            {sd && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 lg:col-span-1">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-semibold text-gray-900">အလှူ အသေးစိတ်</h3>
-                  <button type="button" onClick={() => { setSelectedDonation(null); setRejectNote(""); setCertificateFile(null); }} className="text-gray-400 hover:text-gray-600">✕</button>
+            {totalDonationPages > 1 && (
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <p className="text-sm text-gray-500">
+                  စာမျက်နှာ {donationPage} / {totalDonationPages} (စုစုပေါင်း {filteredDonations.length} ခု)
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDonationPage((p) => Math.max(1, p - 1))}
+                    disabled={donationPage <= 1}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ရှေ့
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDonationPage((p) => Math.min(totalDonationPages, p + 1))}
+                    disabled={donationPage >= totalDonationPages}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    နောက်
+                  </button>
                 </div>
-                <div className="space-y-3 text-sm">
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Donation detail modal */}
+        {sd && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                onClick={() => { setSelectedDonation(null); setRejectNote(""); setCertificateFile(null); }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="donation-detail-title"
+              >
+                <div
+                  className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-5 border-b border-gray-100 flex-shrink-0">
+                    <div className="flex justify-between items-start">
+                      <h3 id="donation-detail-title" className="font-semibold text-gray-900">အလှူ အသေးစိတ်</h3>
+                      <button type="button" onClick={() => { setSelectedDonation(null); setRejectNote(""); setCertificateFile(null); }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-1" aria-label="ပိတ်ရန်">✕</button>
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-3 text-sm overflow-y-auto flex-1">
                   <p><span className="text-gray-500">အမျိုးအစား:</span> {CATEGORY_ICON[sdCat]} {CATEGORY_LABEL[sdCat]}</p>
 
                   {sdCat === "money" && (
@@ -304,9 +362,8 @@ export default function AdminDonationsSection() {
                   <p><span className="text-gray-500">အီးမေးလ်:</span> {sd.email}</p>
                   {sd.message && <p><span className="text-gray-500">မှတ်ချက်:</span> {sd.message}</p>}
                   <p><span className="text-gray-500">နေ့စွဲ:</span> {formatDate(sd.createdAt)}</p>
-                </div>
 
-                {sd.transactionScreenshot && (
+                  {sd.transactionScreenshot && (
                   <div className="mt-4">
                     <p className="text-xs text-gray-500 mb-2">ငွေလွှဲပုံ</p>
                     <a href={sd.transactionScreenshot} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-gray-200">
@@ -339,10 +396,10 @@ export default function AdminDonationsSection() {
                       </button>
                     </div>
                   </div>
-                )}
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
         )}
       </div>
     </div>

@@ -177,7 +177,7 @@ export async function POST(req) {
 
     if (shelters.length === 0) {
       return NextResponse.json(
-        { success: false, error: "အတည်ပြုထားသော ခိုလှုံရာအိမ် မရှိပါ။" },
+        { success: false, error: "အတည်ပြုထားသော ဂေဟာ မရှိပါ။" },
         { status: 400 }
       );
     }
@@ -238,7 +238,7 @@ export async function POST(req) {
 
     if (shelters.length === 0) {
       return NextResponse.json(
-        { success: false, error: "ယုံကြည်စိတ်ချရမှု စံချိန်ပြည့်မီသော ခိုလှုံရာအိမ် မရှိပါ။ (ဖြန့်ဝေမှု အရေအတွက် − ၂ ထက် လှုပ်ရှားမှု မတင်ထားသော ခိုလှုံရာအိမ်များ ချန်လှပ်ထားပါသည်)" },
+        { success: false, error: "ယုံကြည်စိတ်ချရမှု စံချိန်ပြည့်မီသော ဂေဟာ မရှိပါ။ (ဖြန့်ဝေမှု အရေအတွက် − ၂ ထက် လှုပ်ရှားမှု မတင်ထားသော ဂေဟာများ ချန်လှပ်ထားပါသည်)" },
         { status: 400 }
       );
     }

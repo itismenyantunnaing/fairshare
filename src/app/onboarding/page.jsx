@@ -1,12 +1,14 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Tesseract from "tesseract.js";
 import { uploadImageToCloudinary } from "@/lib/uploadClient";
+import { useToast } from "@/context/ToastContext";
 
 export default function HostelOnboarding() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     hostelName: "",
     email: "",
@@ -22,18 +24,7 @@ export default function HostelOnboarding() {
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState("");
-  const [result, setResult] = useState(null);
   const fileInputRef = useRef(null);
-
-  // Auto-dismiss success/warning messages after 10 seconds
-  useEffect(() => {
-    if (result) {
-      const timer = setTimeout(() => {
-        setResult(null);
-      }, 10000);
-      return () => clearTimeout(timer);
-    }
-  }, [result]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -46,14 +37,14 @@ export default function HostelOnboarding() {
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert("ဖိုင်အရွယ်အစား 5MB ထက်မကျော်ရပါ");
+      showToast("ဖိုင်အရွယ်အစား 5MB ထက်မကျော်ရပါ", "error");
       e.target.value = "";
       return;
     }
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("ကျေးဇူးပြု၍ မှန်ကန်သော ပုံဖိုင်ကို တင်ပေးပါ");
+      showToast("ကျေးဇူးပြု၍ မှန်ကန်သော ပုံဖိုင်ကို တင်ပေးပါ", "error");
       e.target.value = "";
       return;
     }
@@ -71,23 +62,16 @@ export default function HostelOnboarding() {
     e.preventDefault();
     setLoading(true);
     setLoadingStep("လက်မှတ်ကို စကန်ဖတ်နေသည်...");
-    setResult(null);
 
     // Validate password match
     if (formData.password !== formData.confirmPassword) {
-      setResult({
-        type: "error",
-        message: "စကားဝှက်များ မတူညီပါ။ ထပ်မံစစ်ဆေးပါ။",
-      });
+      showToast("စကားဝှက်များ မတူညီပါ။ ထပ်မံစစ်ဆေးပါ။", "error");
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
-      setResult({
-        type: "error",
-        message: "စကားဝှက် အနည်းဆုံး ၆ လုံး ရှိရမည်။",
-      });
+      showToast("စကားဝှက် အနည်းဆုံး ၆ လုံး ရှိရမည်။", "error");
       setLoading(false);
       return;
     }
@@ -118,10 +102,7 @@ export default function HostelOnboarding() {
       const uploadResult = await uploadImageToCloudinary(licenseFile, "certificates");
 
       if (uploadResult.error) {
-        setResult({
-          type: "error",
-          message: uploadResult.error || "ပုံတင်ရာတွင် အမှားဖြစ်ပွားပါသည်။",
-        });
+        showToast(uploadResult.error || "ပုံတင်ရာတွင် အမှားဖြစ်ပွားပါသည်။", "error");
         setLoading(false);
         return;
       }
@@ -162,22 +143,15 @@ export default function HostelOnboarding() {
           return;
         }
 
-        setResult({
-          type: "warning",
-          message: data.verification.message,
-          status: data.verification.status,
-        });
+        showToast(data.verification.message || "အတည်ပြုချက် စောင့်ဆိုင်းနေသည်။", "info");
       } else {
-        setResult({
-          type: "error",
-          message: data.error || "မှတ်ပုံတင်ခြင်း မအောင်မြင်ပါ။ ထပ်မံကြိုးစားပါ။",
-        });
+        showToast(data.error || "မှတ်ပုံတင်ခြင်း မအောင်မြင်ပါ။ ထပ်မံကြိုးစားပါ။", "error");
       }
     } catch (err) {
       const msg = err?.message && /failed to fetch|network/i.test(String(err.message))
         ? "ချိတ်ဆက်မှု မအောင်မြင်ပါ။ အင်တာနက်နှင့် ဆာဗာ စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။"
         : "ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။";
-      setResult({ type: "error", message: msg });
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -202,10 +176,10 @@ export default function HostelOnboarding() {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900">
-              ခိုလှုံရာအိမ် မှတ်ပုံတင်ခြင်း
+              ဂေဟာ မှတ်ပုံတင်ခြင်း
             </h2>
             <p className="text-gray-500 text-sm mt-1">
-              အတည်ပြုခြင်းအတွက် သင့်ခိုလှုံရာအိမ် လက်မှတ်ကို တင်ပေးပါ။
+              အတည်ပြုခြင်းအတွက် သင့်ဂေဟာ လက်မှတ်ကို တင်ပေးပါ။
               ကျွန်ုပ်တို့သည် အလိုအလျောက် စစ်ဆေးမှုများပြုလုပ်ပြီးနောက် စီမံခန့်ခွဲသူက ကိုယ်တိုင်စစ်ဆေးပါမည်။
             </p>
           </div>
@@ -217,13 +191,13 @@ export default function HostelOnboarding() {
                 htmlFor="hostelName"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                ခိုလှုံရာအိမ် အမည်
+                ဂေဟာ အမည်
               </label>
               <input
                 id="hostelName"
                 name="hostelName"
                 type="text"
-                placeholder="ဥပမာ - နွေဦးခိုလှုံရာအိမ်"
+                placeholder="ဥပမာ - နွေဦးဂေဟာ"
                 value={formData.hostelName}
                 onChange={handleChange}
                 required
@@ -406,7 +380,7 @@ export default function HostelOnboarding() {
             {/* Certificate Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ခိုလှုံရာအိမ် လက်မှတ် / လိုင်စင်
+                ဂေဟာ လက်မှတ် / လိုင်စင်
               </label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition cursor-pointer">
                 <input
@@ -496,54 +470,6 @@ export default function HostelOnboarding() {
             </button>
           </form>
 
-          {/* Result Message */}
-          {result && (
-            <div
-              className={`mt-6 p-4 rounded-lg border ${
-                result.type === "success"
-                  ? "bg-green-50 border-green-200 text-green-800"
-                  : result.type === "warning"
-                    ? "bg-amber-50 border-amber-200 text-amber-800"
-                    : "bg-red-50 border-red-200 text-red-800"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <span className="text-lg mt-0.5">
-                  {result.type === "success"
-                    ? "\u2713"
-                    : result.type === "warning"
-                      ? "!"
-                      : "\u2717"}
-                </span>
-                <div>
-                  <p className="font-medium text-sm">
-                    {result.type === "success"
-                      ? "မှတ်ပုံတင်ခြင်း တင်သွင်းပြီးပါပြီ"
-                      : result.type === "warning"
-                        ? "အတည်ပြုခြင်း ပြဿနာ"
-                        : "အမှားအယွင်း"}
-                  </p>
-                  <p className="text-sm mt-1">{result.message}</p>
-                  {result.shelterId && (
-                    <a
-                      href={`/shelter/${result.shelterId}`}
-                      className="inline-block mt-3 text-sm font-semibold text-green-700 underline hover:text-green-900"
-                    >
-                      ပရိုဖိုင် စာမျက်နှာသို့ သွားရန်
-                    </a>
-                  )}
-                  {result.status && (
-                    <p className="text-xs mt-2 opacity-75">
-                      အခြေအနေ:{" "}
-                      <span className="font-medium uppercase">
-                        {result.status}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Info Section */}
@@ -557,7 +483,7 @@ export default function HostelOnboarding() {
                 1
               </span>
               <p className="text-sm text-gray-600">
-                သင့်ခိုလှုံရာအိမ် လက်မှတ် သို့မဟုတ် လိုင်စင်ပုံကို တင်ပေးပါ။
+                သင့်ဂေဟာ လက်မှတ် သို့မဟုတ် လိုင်စင်ပုံကို တင်ပေးပါ။
               </p>
             </div>
             <div className="flex items-start gap-3">

@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
+        { success: false, error: "ဂေဟာ ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
       );
     }
@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
 
     if (!hostel) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် မတွေ့ပါ" },
+        { success: false, error: "ဂေဟာ မတွေ့ပါ" },
         { status: 404 }
       );
     }
@@ -65,7 +65,7 @@ export async function PATCH(req, { params }) {
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
+        { success: false, error: "ဂေဟာ ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
       );
     }
@@ -93,7 +93,7 @@ export async function PATCH(req, { params }) {
 
     if (!hostel) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် မတွေ့ပါ" },
+        { success: false, error: "ဂေဟာ မတွေ့ပါ" },
         { status: 404 }
       );
     }
@@ -134,8 +134,8 @@ export async function PATCH(req, { params }) {
 
     const message =
       action === "approve"
-        ? `ခိုလှုံရာအိမ် အတည်ပြုပြီးပါပြီ။${emailSent ? " အတည်ပြုချက် အီးမေးလ် ပေးပို့ပြီးပါပြီ။" : ""}`
-        : `ခိုလှုံရာအိမ် ငြင်းပယ်ပြီးပါပြီ။${emailSent ? " ငြင်းပယ်ချက် အီးမေးလ် ပေးပို့ပြီးပါပြီ။" : ""}`;
+        ? `ဂေဟာ အတည်ပြုပြီးပါပြီ။${emailSent ? " အတည်ပြုချက် အီးမေးလ် ပေးပို့ပြီးပါပြီ။" : ""}`
+        : `ဂေဟာ ငြင်းပယ်ပြီးပါပြီ။${emailSent ? " ငြင်းပယ်ချက် အီးမေးလ် ပေးပို့ပြီးပါပြီ။" : ""}`;
 
     return NextResponse.json({
       success: true,
@@ -162,7 +162,7 @@ export async function DELETE(req, { params }) {
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
+        { success: false, error: "ဂေဟာ ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
       );
     }
@@ -176,14 +176,14 @@ export async function DELETE(req, { params }) {
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် မတွေ့ပါ" },
+        { success: false, error: "ဂေဟာ မတွေ့ပါ" },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "ခိုလှုံရာအိမ်ကို အပြီးတိုင် ဖျက်ပစ်ပြီးပါပြီ။",
+      message: "ဂေဟာကို အပြီးတိုင် ဖျက်ပစ်ပြီးပါပြီ။",
     });
   } catch (e) {
     console.error("Error deleting shelter:", e);

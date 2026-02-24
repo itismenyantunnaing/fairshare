@@ -1,8 +1,21 @@
 @import "tailwindcss";
 
+/* Century Burma – Myanmar (Burmese) script. Files: public/fonts/century-burma.woff2 & .ttf */
+@font-face {
+  font-family: "Century Burma";
+  src:
+    url("/fonts/century-burma.woff2") format("woff2"),
+    url("/fonts/century-burma.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1000-109F, U+200C-200D, U+25CC;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-myanmar: "Century Burma", Arial, Helvetica, sans-serif;
 }
 
 @theme inline {
@@ -22,5 +35,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-myanmar);
 }

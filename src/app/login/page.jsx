@@ -2,18 +2,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -35,10 +35,10 @@ export default function LoginPage() {
         }
         router.refresh();
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch {
-      setError("ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ ထပ်မံကြိုးစားပါ။");
+      showToast("ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ ထပ်မံကြိုးစားပါ။", "error");
     } finally {
       setLoading(false);
     }
@@ -53,17 +53,11 @@ export default function LoginPage() {
             သင့်အကောင့်သို့ ဝင်ရောက်ပါ
           </p>
           <p className="text-gray-400 mt-1 text-xs">
-            အလှူရှင် · ခိုလှုံရာအိမ် · စီမံခန့်ခွဲသူ အားလုံး ဤနေရာတွင် ဝင်ရောက်ပါ။
+            အလှူရှင် · ဂေဟာ · စီမံခန့်ခွဲသူ အားလုံး ဤနေရာတွင် ဝင်ရောက်ပါ။
           </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label

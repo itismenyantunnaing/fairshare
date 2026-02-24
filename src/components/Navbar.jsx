@@ -86,7 +86,7 @@ export default function Navbar() {
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
               }`}
             >
-              ခိုလှုံရာအိမ်များ
+              ဂေဟာများ
             </Link>
             <Link
               href="/donors"
@@ -268,7 +268,7 @@ export default function Navbar() {
                   : "text-gray-700 hover:bg-gray-50"
               }`}
             >
-              ခိုလှုံရာအိမ်များ
+              ဂေဟာများ
             </Link>
             <Link
               href="/donors"

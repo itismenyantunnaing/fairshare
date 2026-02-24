@@ -2,14 +2,16 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/context/ToastContext";
 
 export default function ActivityDetailPage({ params }) {
   const { activityId } = use(params);
   const router = useRouter();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
 
   // Auth check
@@ -40,10 +42,12 @@ export default function ActivityDetailPage({ params }) {
         if (data.success) {
           setActivity(data.activity);
         } else {
-          setError(data.error);
+          showToast(data.error, "error");
+          setLoadFailed(true);
         }
       } catch (err) {
-        setError("လှုပ်ရှားမှု အချက်အလက် ခေါ်ယူ၍ မရပါ။");
+        showToast("လှုပ်ရှားမှု အချက်အလက် ခေါ်ယူ၍ မရပါ။", "error");
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -80,7 +84,7 @@ export default function ActivityDetailPage({ params }) {
     );
   }
 
-  if (error || !activity) {
+  if (loadFailed || !activity) {
     return (
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
@@ -90,12 +94,12 @@ export default function ActivityDetailPage({ params }) {
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">လှုပ်ရှားမှု မတွေ့ပါ</h2>
-          <p className="text-gray-500 text-sm">{error}</p>
+          <p className="text-gray-500 text-sm">လှုပ်ရှားမှု အချက်အလက် ခေါ်ယူ၍ မရပါ။ မှတ်ချက်ကို ညာဘက် အနားမှ ကြည့်ပါ။</p>
           <Link
             href="/shelters"
             className="inline-block mt-6 text-sm text-blue-600 hover:text-blue-800 font-medium"
           >
-            ခိုလှုံရာအိမ်များသို့ ပြန်သွားရန်
+            ဂေဟာများသို့ ပြန်သွားရန်
           </Link>
         </div>
       </div>
@@ -113,7 +117,7 @@ export default function ActivityDetailPage({ params }) {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          ခိုလှုံရာအိမ်သို့ ပြန်သွားရန်
+          ဂေဟာသို့ ပြန်သွားရန်
         </Link>
 
         {/* Activity Card */}

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/context/ToastContext";
 
 const SCHEDULE_LABEL = { today: "ယနေ့", yesterday: "ယမန်နေ့", last_week: "ပြီးခဲ့သော အပတ်", custom: "စိတ်ကြိုက် ကာလ", all: "အလှူငွေအားလုံး" };
 const SCHEDULE_OPTIONS = ["today", "yesterday", "last_week", "custom", "all"];
@@ -14,13 +15,12 @@ function formatDate(d) {
 
 export default function AdminDistributionsSection() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [user, setUser] = useState(null);
   const [distributions, setDistributions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [formData, setFormData] = useState({
     scheduleType: "today",
     startDate: "",
@@ -59,23 +59,9 @@ export default function AdminDistributionsSection() {
     else if (user) setLoading(false);
   }, [user, canManage]);
 
-  useEffect(() => {
-    if (success) {
-      const t = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [success]);
-  useEffect(() => {
-    if (error) {
-      const t = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [error]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setError(null);
     try {
       const payload = {
         scheduleType: formData.scheduleType,
@@ -83,7 +69,7 @@ export default function AdminDistributionsSection() {
       };
       if (formData.scheduleType === "custom") {
         if (!formData.startDate || !formData.endDate) {
-          setError("စိတ်ကြိုက် ကာလအတွက် စတင်ရက် နှင့် ပြီးဆုံးရက် ထည့်ပါ။");
+          showToast("စိတ်ကြိုက် ကာလအတွက် စတင်ရက် နှင့် ပြီးဆုံးရက် ထည့်ပါ။", "error");
           setSubmitting(false);
           return;
         }
@@ -97,17 +83,17 @@ export default function AdminDistributionsSection() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess("ဖြန့်ဝေမှု ဖန်တီးပြီးပါပြီ။ အတည်ပြု သို့မဟုတ် ပယ်ဖျက်ရန် အသေးစိတ်သို့ သွားပါ။");
+        showToast("ဖြန့်ဝေမှု ဖန်တီးပြီးပါပြီ။ အတည်ပြု သို့မဟုတ် ပယ်ဖျက်ရန် အသေးစိတ်သို့ သွားပါ။", "success");
         setShowForm(false);
         setFormData({ scheduleType: "today", startDate: "", endDate: "", name: "" });
         const distId = data.distribution?.id || data.distribution?._id?.toString();
         if (distId) router.push(`/admin/distributions/${distId}`);
         else fetchDistributions();
       } else {
-        setError(data.error || "ဖြန့်ဝေမှု ဖန်တီး၍ မရပါ။");
+        showToast(data.error || "ဖြန့်ဝေမှု ဖန်တီး၍ မရပါ။", "error");
       }
     } catch {
-      setError("ဖြန့်ဝေမှု ဖန်တီး၍ မရပါ။");
+      showToast("ဖြန့်ဝေမှု ဖန်တီး၍ မရပါ။", "error");
     } finally {
       setSubmitting(false);
     }
@@ -131,17 +117,6 @@ export default function AdminDistributionsSection() {
 
   return (
     <div className="space-y-6">
-      {success && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-          {error}
-        </div>
-      )}
-
       {!showForm ? (
         <button
           type="button"
@@ -240,30 +215,26 @@ export default function AdminDistributionsSection() {
             <p>ဖြန့်ဝေမှု မရှိသေးပါ။ အသစ် ဖန်တီးနိုင်ပါသည်။</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
             {distributions.map((d) => (
-              <div
+              <Link
                 key={d.id || d._id}
-                className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50"
+                href={`/admin/distributions/${d.id || d._id}`}
+                className="block bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-4 transition"
               >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {d.name || "အမည်မသိ"}
-                    {d.status === "draft" && (
-                      <span className="ml-2 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">မအတည်ပြုရသေး</span>
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType} · {formatDate(d.donationPeriodStart || d.startDate)} — {formatDate(d.donationPeriodEnd || d.endDate)}
-                  </p>
-                </div>
-                <Link
-                  href={`/admin/distributions/${d.id || d._id}`}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-50"
-                >
-                  ကြည့်ရန်
-                </Link>
-              </div>
+                <p className="font-medium text-gray-900">
+                  {d.name || "အမည်မသိ"}
+                  {d.status === "draft" && (
+                    <span className="ml-2 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">မအတည်ပြုရသေး</span>
+                  )}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType} · {formatDate(d.donationPeriodStart || d.startDate)} — {formatDate(d.donationPeriodEnd || d.endDate)}
+                </p>
+                <span className="inline-block mt-3 text-sm font-medium text-blue-600 hover:text-blue-700">
+                  ကြည့်ရန် →
+                </span>
+              </Link>
             ))}
           </div>
         )}

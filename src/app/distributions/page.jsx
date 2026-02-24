@@ -72,7 +72,7 @@ export default function DistributionsListPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">ဖြန့်ဝေမှုများ</h1>
         <p className="text-gray-600 text-sm mb-6">
           ဖြန့်ဝေမှုတစ်ခုကို နှိပ်ပြီး ထိုဖြန့်ဝေမှုနှင့် ဆိုင်သော လှုပ်ရှားမှုများ (ပို့စ်များ) ကြည့်နိုင်ပါသည်။
@@ -87,29 +87,25 @@ export default function DistributionsListPage() {
             <p className="text-gray-500">ဖြန့်ဝေမှု မရှိသေးပါ။</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {distributions.map((d) => (
               <Link
                 key={d.id}
                 href={`/distributions/${d.id}`}
                 className="block bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-200 hover:shadow-md transition"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="font-semibold text-gray-900">
-                      {d.name || "ဖြန့်ဝေမှု"}
-                    </h2>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      အလှူကာလ: {formatDate(d.donationPeriodStart)} — {formatDate(d.donationPeriodEnd)}
-                    </p>
-                  </div>
-                  <span className="text-blue-600 text-sm font-medium flex-shrink-0">
-                    ကြည့်ရန် →
-                  </span>
-                </div>
+                <h2 className="font-semibold text-gray-900">
+                  {d.name || "ဖြန့်ဝေမှု"}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {SCHEDULE_LABEL[d.scheduleType] || d.scheduleType}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  အလှူကာလ: {formatDate(d.donationPeriodStart)} — {formatDate(d.donationPeriodEnd)}
+                </p>
+                <span className="inline-block mt-3 text-blue-600 text-sm font-medium">
+                  ကြည့်ရန် →
+                </span>
               </Link>
             ))}
           </div>

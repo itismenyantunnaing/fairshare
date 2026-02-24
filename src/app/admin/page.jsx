@@ -6,7 +6,7 @@ import AdminDonationsSection from "./AdminDonationsSection";
 import AdminDistributionsSection from "./AdminDistributionsSection";
 
 const SECTION_TABS = [
-  { key: "hostels", label: "ခိုလှုံရာအိမ်များ" },
+  { key: "hostels", label: "ဂေဟာများ" },
   { key: "donations", label: "အလှူငွေများ" },
   { key: "distributions", label: "ဖြန့်ဝေမှုများ" },
 ];
@@ -15,6 +15,7 @@ export default function AdminPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [authChecked, setAuthChecked] = useState(false);
+  const [counts, setCounts] = useState({ hostelsPending: 0, hostelsApproved: 0, hostelsAutoRejected: 0, donationsPending: 0, donationsApproved: 0 });
   const [mainTab, setMainTab] = useState(() => {
     const t = searchParams.get("tab");
     return t === "donations" || t === "distributions" ? t : "hostels";
@@ -41,6 +42,28 @@ export default function AdminPage() {
     };
     checkAdmin();
   }, [router]);
+
+  useEffect(() => {
+    if (!authChecked) return;
+    const fetchCounts = async () => {
+      try {
+        const res = await fetch("/api/admin/counts");
+        const data = await res.json();
+        if (data.success) {
+          setCounts({
+            hostelsPending: data.hostelsPending ?? 0,
+            hostelsApproved: data.hostelsApproved ?? 0,
+            hostelsAutoRejected: data.hostelsAutoRejected ?? 0,
+            donationsPending: data.donationsPending ?? 0,
+            donationsApproved: data.donationsApproved ?? 0,
+          });
+        }
+      } catch (e) {
+        console.error("Fetch counts error:", e);
+      }
+    };
+    fetchCounts();
+  }, [authChecked]);
 
   if (!authChecked) {
     return (
@@ -78,8 +101,12 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {mainTab === "hostels" && <AdminHostelsSection />}
-        {mainTab === "donations" && <AdminDonationsSection />}
+        {mainTab === "hostels" && <AdminHostelsSection hostelsPending={counts.hostelsPending} hostelsApproved={counts.hostelsApproved} hostelsAutoRejected={counts.hostelsAutoRejected} onCountsChange={() => {
+          fetch("/api/admin/counts").then((r) => r.json()).then((d) => d.success && setCounts((c) => ({ ...c, hostelsPending: d.hostelsPending ?? 0, hostelsApproved: d.hostelsApproved ?? 0, hostelsAutoRejected: d.hostelsAutoRejected ?? 0 })));
+        }} />}
+        {mainTab === "donations" && <AdminDonationsSection donationsPending={counts.donationsPending} donationsApproved={counts.donationsApproved} onCountsChange={() => {
+          fetch("/api/admin/counts").then((r) => r.json()).then((d) => d.success && setCounts((c) => ({ ...c, donationsPending: d.donationsPending ?? 0, donationsApproved: d.donationsApproved ?? 0 })));
+        }} />}
         {mainTab === "distributions" && <AdminDistributionsSection />}
       </div>
     </div>

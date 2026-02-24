@@ -23,7 +23,7 @@ export async function GET(req, context) {
 
     if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
+        { success: false, error: "ဂေဟာ ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
       );
     }
@@ -35,7 +35,7 @@ export async function GET(req, context) {
     const shelter = await db.collection("hostels").findOne({ _id: shelterId });
     if (!shelter) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် မတွေ့ပါ" },
+        { success: false, error: "ဂေဟာ မတွေ့ပါ" },
         { status: 404 }
       );
     }

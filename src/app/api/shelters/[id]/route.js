@@ -22,7 +22,7 @@ export async function GET(req, { params }) {
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် ID ပုံစံ မမှန်ကန်ပါ" },
+        { success: false, error: "ဂေဟာ ID ပုံစံ မမှန်ကန်ပါ" },
         { status: 400 }
       );
     }
@@ -52,7 +52,7 @@ export async function GET(req, { params }) {
 
     if (!shelter) {
       return NextResponse.json(
-        { success: false, error: "ခိုလှုံရာအိမ် မတွေ့ပါ သို့မဟုတ် အတည်မပြုရသေးပါ" },
+        { success: false, error: "ဂေဟာ မတွေ့ပါ သို့မဟုတ် အတည်မပြုရသေးပါ" },
         { status: 404 }
       );
     }

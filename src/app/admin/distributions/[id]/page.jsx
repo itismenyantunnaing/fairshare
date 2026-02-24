@@ -2,6 +2,7 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/context/ToastContext";
 
 const SCHEDULE_LABEL = {
   today: "ယနေ့",
@@ -24,6 +25,7 @@ function formatDate(d) {
 export default function AdminDistributionDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const { showToast } = useToast();
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [distribution, setDistribution] = useState(null);
@@ -31,8 +33,16 @@ export default function AdminDistributionDetailPage({ params }) {
   const [removing, setRemoving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [activityPage, setActivityPage] = useState(1);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+
+  const ACTIVITIES_PER_PAGE = 12;
+  const activities = distribution?.activities || [];
+  const totalActivityPages = Math.max(1, Math.ceil(activities.length / ACTIVITIES_PER_PAGE));
+  const paginatedActivities = activities.slice(
+    (activityPage - 1) * ACTIVITIES_PER_PAGE,
+    activityPage * ACTIVITIES_PER_PAGE
+  );
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -76,33 +86,23 @@ export default function AdminDistributionDetailPage({ params }) {
   }, [authChecked, id]);
 
   useEffect(() => {
-    if (success) {
-      const t = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [success]);
-  useEffect(() => {
-    if (error) {
-      const t = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [error]);
+    setActivityPage(1);
+  }, [id]);
 
   const handleRemoveDonations = async () => {
     if (!confirm("ဤဖြန့်ဝေမှုတွင် ပါဝင်သော အလှူများအားလုံးကို ဖျက်မည်လား? ပြန်လည်ပြုပြင်၍ မရပါ။")) return;
     setRemoving(true);
-    setError(null);
     try {
       const res = await fetch(`/api/admin/distributions/${id}/donations`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message || "အလှူများ ဖျက်ပြီးပါပြီ။");
+        showToast(data.message || "အလှူများ ဖျက်ပြီးပါပြီ။", "success");
         fetchDistribution();
       } else {
-        setError(data.error || "ဖျက်၍ မရပါ။");
+        showToast(data.error || "ဖျက်၍ မရပါ။", "error");
       }
     } catch {
-      setError("ဖျက်၍ မရပါ။");
+      showToast("ဖျက်၍ မရပါ။", "error");
     } finally {
       setRemoving(false);
     }
@@ -111,18 +111,17 @@ export default function AdminDistributionDetailPage({ params }) {
   const handleConfirm = async () => {
     if (!confirm("ဤဖြန့်ဝေမှုကို အတည်ပြုမည်လား? အလှူများ ဤဖြန့်ဝေမှုသို့ ထည့်သွင်းပြီး စာရင်းမှ ပျောက်သွားမည်။")) return;
     setConfirming(true);
-    setError(null);
     try {
       const res = await fetch(`/api/admin/distributions/${id}/confirm`, { method: "POST" });
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message || "အတည်ပြုပြီးပါပြီ။");
+        showToast(data.message || "အတည်ပြုပြီးပါပြီ။", "success");
         fetchDistribution();
       } else {
-        setError(data.error || "အတည်ပြု၍ မရပါ။");
+        showToast(data.error || "အတည်ပြု၍ မရပါ။", "error");
       }
     } catch {
-      setError("အတည်ပြု၍ မရပါ။");
+      showToast("အတည်ပြု၍ မရပါ။", "error");
     } finally {
       setConfirming(false);
     }
@@ -134,7 +133,6 @@ export default function AdminDistributionDetailPage({ params }) {
       : "ဤဖြန့်ဝေမှုကို ဖျက်မည်လား? အလှူများ ပြန်လည် သုံးစွဲနိုင်ပါမည်။";
     if (!confirm(msg)) return;
     setDeleting(true);
-    setError(null);
     try {
       const res = await fetch(`/api/admin/distributions/${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -142,9 +140,9 @@ export default function AdminDistributionDetailPage({ params }) {
         router.push("/admin?tab=distributions");
         return;
       }
-      setError(data.error || "ဖျက်၍ မရပါ။");
+      showToast(data.error || "ဖျက်၍ မရပါ။", "error");
     } catch {
-      setError("ဖျက်၍ မရပါ။");
+      showToast("ဖျက်၍ မရပါ။", "error");
     } finally {
       setDeleting(false);
     }
@@ -197,17 +195,6 @@ export default function AdminDistributionDetailPage({ params }) {
           </div>
         </div>
 
-        {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
-            {success}
-          </div>
-        )}
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-            {error}
-          </div>
-        )}
-
         <div className="mb-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
           <p className="text-sm text-gray-500">
             အလှူကာလ: {SCHEDULE_LABEL[distribution.scheduleType] || distribution.scheduleType}
@@ -259,13 +246,13 @@ export default function AdminDistributionDetailPage({ params }) {
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">ခိုလှုံရာအိမ်များ ချထားပေးမှု</h2>
+            <h2 className="font-semibold text-gray-900">ဂေဟာများ ချထားပေးမှု</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">ခိုလှုံရာအိမ်</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">ဂေဟာ</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">လှုပ်ရှားမှု</th>
                   <th className="text-right py-3 px-4 font-medium text-gray-700">ငွေ (MMK)</th>
                   <th className="text-right py-3 px-4 font-medium text-gray-700">ပြည်</th>
@@ -339,51 +326,163 @@ export default function AdminDistributionDetailPage({ params }) {
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-900">ဤဖြန့်ဝေမှုနှင့် ဆိုင်သော လှုပ်ရှားမှုများ</h2>
             <p className="text-sm text-gray-500 mt-1">
-              ခိုလှုံရာအိမ်များ တင်ထားသော ပို့စ်များ
+              ဂေဟာများ တင်ထားသော ပို့စ်များ
             </p>
           </div>
           <div className="px-5 py-4">
-            {(distribution.activities || []).length === 0 ? (
+            {activities.length === 0 ? (
               <p className="text-sm text-gray-500">ဤဖြန့်ဝေမှုအတွက် လှုပ်ရှားမှု မရှိသေးပါ။</p>
             ) : (
-              <div className="space-y-4">
-                {(distribution.activities || []).map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="border border-gray-100 rounded-xl overflow-hidden"
-                  >
-                    {activity.images?.length > 0 && (
-                      <div className="h-40 bg-gray-100 overflow-hidden">
-                        <img
-                          src={activity.images[0]}
-                          alt={activity.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                          {activity.shelterName}
-                        </span>
-                        {activity.distributionDate && (
-                          <span className="text-xs text-gray-400">
-                            {formatDate(activity.distributionDate)}
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedActivities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedActivity(activity)}
+                      onKeyDown={(e) => e.key === "Enter" && setSelectedActivity(activity)}
+                      className="border border-gray-100 rounded-xl overflow-hidden cursor-pointer hover:border-blue-200 hover:shadow-md transition"
+                    >
+                      {activity.images?.length > 0 ? (
+                        <div className="h-40 bg-gray-100 overflow-hidden">
+                          <img
+                            src={activity.images[0]}
+                            alt={activity.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-40 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">ပုံ မရှိပါ</div>
+                      )}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                            {activity.shelterName}
                           </span>
-                        )}
+                          {activity.distributionDate && (
+                            <span className="text-xs text-gray-400">
+                              {formatDate(activity.distributionDate)}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-gray-900">{activity.title}</h3>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-3">{activity.description}</p>
+                        <div className="flex items-center justify-between gap-4 mt-2 text-xs text-gray-400">
+                          <span>{activity.images?.length > 0 ? `${activity.images.length} ပုံ` : ""} · {formatDate(activity.createdAt)}</span>
+                          <span className="text-blue-600 font-medium">ကြည့်ရန်</span>
+                        </div>
                       </div>
-                      <h3 className="font-semibold text-gray-900">{activity.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-3">{activity.description}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                        {activity.images?.length > 0 && (
-                          <span>{activity.images.length} ပုံ</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Activity detail modal */}
+                {selectedActivity && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                    onClick={() => setSelectedActivity(null)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="activity-detail-title"
+                  >
+                    <div
+                      className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="p-5 border-b border-gray-100 flex-shrink-0 flex items-start justify-between gap-4">
+                        <h3 id="activity-detail-title" className="font-semibold text-gray-900 text-lg">
+                          {selectedActivity.title}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedActivity(null)}
+                          className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-1"
+                          aria-label="ပိတ်ရန်"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="p-5 overflow-y-auto flex-1 space-y-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 rounded-full">
+                            {selectedActivity.shelterName}
+                          </span>
+                          {selectedActivity.distributionDate && (
+                            <span className="text-sm text-gray-500">
+                              ဖြန့်ဝေသည့်နေ့: {formatDate(selectedActivity.distributionDate)}
+                            </span>
+                          )}
+                          <span className="text-sm text-gray-500">
+                            တင်သည့်ရက်: {formatDate(selectedActivity.createdAt)}
+                          </span>
+                        </div>
+                        {selectedActivity.description && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 mb-1">ဖော်ပြချက်</p>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedActivity.description}</p>
+                          </div>
                         )}
-                        <span>{formatDate(activity.createdAt)}</span>
+                        {selectedActivity.images?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 mb-2">ဓာတ်ပုံများ ({selectedActivity.images.length})</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {selectedActivity.images.map((img, idx) => (
+                                <a
+                                  key={idx}
+                                  href={img}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block rounded-lg overflow-hidden border border-gray-200 aspect-square"
+                                >
+                                  <img src={img} alt={`${selectedActivity.title} ${idx + 1}`} className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {selectedActivity.id && (
+                          <div className="pt-2 border-t border-gray-100">
+                            <Link
+                              href={`/activities/${selectedActivity.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block text-sm font-medium text-blue-600 hover:text-blue-800"
+                            >
+                              လှုပ်ရှားမှု အပြည့်အစုံ ကြည့်ရန် →
+                            </Link>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+                {totalActivityPages > 1 && (
+                  <div className="flex items-center justify-between flex-wrap gap-3 mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">
+                      စာမျက်နှာ {activityPage} / {totalActivityPages} (စုစုပေါင်း {activities.length} ခု)
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                        disabled={activityPage <= 1}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        ရှေ့
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActivityPage((p) => Math.min(totalActivityPages, p + 1))}
+                        disabled={activityPage >= totalActivityPages}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        နောက်
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

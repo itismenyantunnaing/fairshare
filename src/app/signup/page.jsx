@@ -2,9 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export default function SignupPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [selectedType, setSelectedType] = useState(null);
 
   const [name, setName] = useState("");
@@ -12,14 +14,12 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const handleDonorSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
     if (password !== confirmPassword) {
-      setError("စကားဝှက် နှစ်ကြိမ် ကိုက်ညီပါစေ။");
+      showToast("စကားဝှက် နှစ်ကြိမ် ကိုက်ညီပါစေ။", "error");
       setLoading(false);
       return;
     }
@@ -34,17 +34,16 @@ export default function SignupPage() {
         router.push("/donor");
         router.refresh();
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch {
-      setError("ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ ထပ်မံကြိုးစားပါ။");
+      showToast("ကွန်ရက်ချို့ယွင်းချက်ဖြစ်ပါသည်။ ထပ်မံကြိုးစားပါ။", "error");
     } finally {
       setLoading(false);
     }
   };
 
   const resetDonorForm = () => {
-    setError(null);
     setName("");
     setEmail("");
     setPassword("");
@@ -83,7 +82,7 @@ export default function SignupPage() {
                 <div>
                   <h3 className="font-semibold text-gray-900">အလှူရှင်</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    ကလေးများခိုလှုံရာအိမ်များသို့ လှူဒါန်းရန်
+                    ကလေးများဂေဟာများသို့ လှူဒါန်းရန်
                   </p>
                 </div>
               </div>
@@ -100,9 +99,9 @@ export default function SignupPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">ခိုလှုံရာအိမ်</h3>
+                  <h3 className="font-semibold text-gray-900">ဂေဟာ</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    ခိုလှုံရာအိမ်ကို မှတ်ပုံတင်ပြီး အလှူငွေ လက်ခံရန်
+                    ဂေဟာကို မှတ်ပုံတင်ပြီး အလှူငွေ လက်ခံရန်
                   </p>
                 </div>
               </div>
@@ -123,11 +122,6 @@ export default function SignupPage() {
             </button>
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">အလှူရှင် အကောင့်ဖွင့်ရန်</h2>
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5">
-                  <p className="text-sm text-red-800">{error}</p>
-                </div>
-              )}
               <form onSubmit={handleDonorSubmit} className="space-y-5">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">

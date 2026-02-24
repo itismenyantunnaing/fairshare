@@ -7,12 +7,12 @@ export default function Home() {
       <div className="max-w-5xl mx-auto px-4 py-20 sm:py-28">
         <div className="text-center max-w-3xl mx-auto">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight">
-            ကလေးများခိုလှုံရာအိမ်များအတွက်
+            ဂေဟာများအတွက်
             <br />
             <span className="text-blue-600">မျှတသောအလှူငွေ</span> ပလက်ဖောင်း
           </h1>
           <p className="text-gray-500 mt-6 text-lg max-w-2xl mx-auto leading-relaxed">
-            FairShare သည် ကလေးများခိုလှုံရာအိမ်များနှင့် အလှူရှင်များကို ချိတ်ဆက်ပေးပြီး
+            FairShare သည် ဂေဟာများနှင့် အလှူရှင်များကို ချိတ်ဆက်ပေးပြီး
             ပွင့်လင်းမြင်သာမှုရှိသော အလှူငွေများကို ဆောင်ရွက်ပေးပါသည်။
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
@@ -43,7 +43,7 @@ export default function Home() {
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">AI ဖြင့် အတည်ပြုခြင်း</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              ခိုလှုံရာအိမ် လက်မှတ်များကို AI နည်းပညာဖြင့် အလိုအလျောက် စစ်ဆေးအတည်ပြုပါသည်။
+              ဂေဟာ လက်မှတ်များကို AI နည်းပညာဖြင့် အလိုအလျောက် စစ်ဆေးအတည်ပြုပါသည်။
             </p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -54,7 +54,7 @@ export default function Home() {
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">မျှတသော အလှူငွေ</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              အလှူရှင်များသည် စစ်မှန်သော ခိုလှုံရာအိမ်များသို့ တိုက်ရိုက် လှူဒါန်းနိုင်ပါသည်။
+              အလှူရှင်များသည် စစ်မှန်သော ဂေဟာများသို့ တိုက်ရိုက် လှူဒါန်းနိုင်ပါသည်။
             </p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">

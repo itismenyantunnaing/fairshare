@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { uploadImageToCloudinary } from "@/lib/uploadClient";
+import { useToast } from "@/context/ToastContext";
 
 const STATUS_BADGE = {
   pending: {
@@ -18,13 +19,13 @@ const STATUS_BADGE = {
 export default function ShelterProfile({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [isOwner, setIsOwner] = useState(false); // true if shelter owner, false if admin viewing
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const imageInputRef = useRef(null);
 
@@ -67,21 +68,13 @@ export default function ShelterProfile({ params }) {
         setIsOwner(isOwnerUser);
         setAuthChecked(true);
       } catch {
-        setError("ဆာဗာနှင့် ချိတ်ဆက်၍ မရပါ။ ထပ်မံကြိုးစားပါ သို့မဟုတ် အကောင့်ပြန်ဝင်ပါ။");
+        showToast("ဆာဗာနှင့် ချိတ်ဆက်၍ မရပါ။ ထပ်မံကြိုးစားပါ သို့မဟုတ် အကောင့်ပြန်ဝင်ပါ။", "error");
         setAuthChecked(true);
         setLoading(false);
       }
     };
     checkAuth();
   }, [id, router]);
-
-  // Auto-dismiss success message
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
 
   // Fetch profile data (only after auth is confirmed)
   useEffect(() => {
@@ -106,10 +99,12 @@ export default function ShelterProfile({ params }) {
           });
           setProfileImages(data.profile.profileImages || []);
         } else {
-          setError(data.error || "ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။");
+          showToast(data.error || "ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။", "error");
+          setLoadFailed(true);
         }
       } catch (err) {
-        setError("ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။ အင်တာနက်ချိတ်ဆက်မှု စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။");
+        showToast("ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။ အင်တာနက်ချိတ်ဆက်မှု စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။", "error");
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -132,13 +127,13 @@ export default function ShelterProfile({ params }) {
     const totalImages = profileImages.length + newImages.length + files.length;
 
     if (totalImages > 5) {
-      alert("ပရိုဖိုင်ပုံ အများဆုံး ၅ ပုံသာ တင်နိုင်ပါသည်။");
+      showToast("ပရိုဖိုင်ပုံ အများဆုံး ၅ ပုံသာ တင်နိုင်ပါသည်။", "error");
       return;
     }
 
     files.forEach((file) => {
       if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name} - ဖိုင်အရွယ်အစား 5MB ထက်မကျော်ရပါ`);
+        showToast(`${file.name} - ဖိုင်အရွယ်အစား 5MB ထက်မကျော်ရပါ`, "error");
         return;
       }
       if (!file.type.startsWith("image/")) return;
@@ -164,8 +159,6 @@ export default function ShelterProfile({ params }) {
 
   const handleSave = async () => {
     setSaving(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       // Upload new images to Cloudinary
@@ -173,7 +166,7 @@ export default function ShelterProfile({ params }) {
       for (const { file } of newImages) {
         const result = await uploadImageToCloudinary(file, `shelter-profiles/${id}`);
         if (result.error) {
-          setError(result.error || "ပုံတင်ရာတွင် အမှားဖြစ်ပွားပါသည်။");
+          showToast(result.error || "ပုံတင်ရာတွင် အမှားဖြစ်ပွားပါသည်။", "error");
           setSaving(false);
           return;
         }
@@ -203,7 +196,7 @@ export default function ShelterProfile({ params }) {
 
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message);
+        showToast(data.message, "success");
         setProfileImages(allImages);
         setNewImages([]);
         setEditMode(false);
@@ -220,10 +213,10 @@ export default function ShelterProfile({ params }) {
           profileImages: allImages,
         }));
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch (err) {
-      setError("သိမ်းဆည်းခြင်း မအောင်မြင်ပါ။ ထပ်မံကြိုးစားပါ။");
+      showToast("သိမ်းဆည်းခြင်း မအောင်မြင်ပါ။ ထပ်မံကြိုးစားပါ။", "error");
     } finally {
       setSaving(false);
     }
@@ -245,7 +238,6 @@ export default function ShelterProfile({ params }) {
       setNewImages([]);
     }
     setEditMode(false);
-    setError(null);
   };
 
   if (!authChecked || loading) {
@@ -259,7 +251,7 @@ export default function ShelterProfile({ params }) {
     );
   }
 
-  if (error && !profile) {
+  if (loadFailed && !profile) {
     return (
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
@@ -269,7 +261,7 @@ export default function ShelterProfile({ params }) {
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">ပြဿနာ ဖြစ်ပွားပါသည်</h2>
-          <p className="text-gray-500 text-sm">{error}</p>
+          <p className="text-gray-500 text-sm">ပရိုဖိုင် ခေါ်ယူ၍ မရပါ။ မှတ်ချက်ကို ညာဘက် အနားမှ ကြည့်ပါ။</p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/login" className="text-sm font-medium text-blue-600 hover:text-blue-800">
               အကောင့်ပြန်ဝင်ရန်
@@ -391,7 +383,7 @@ export default function ShelterProfile({ params }) {
               <div>
                 <p className="text-sm font-medium text-blue-800">စီမံခန့်ခွဲသူ ကြည့်ရှုမှု</p>
                 <p className="text-xs text-blue-700 mt-1">
-                  သင်သည် ဤခိုလှုံရာအိမ်၏ အချက်အလက်များကို ကြည့်ရှုနေပါသည်။ ပြင်ဆင်ခွင့် မရှိပါ။
+                  သင်သည် ဤဂေဟာ၏ အချက်အလက်များကို ကြည့်ရှုနေပါသည်။ ပြင်ဆင်ခွင့် မရှိပါ။
                 </p>
               </div>
             </div>
@@ -408,24 +400,12 @@ export default function ShelterProfile({ params }) {
               <div>
                 <p className="text-sm font-medium text-amber-800">ကန့်သတ်ဝင်ရောက်ခွင့်</p>
                 <p className="text-xs text-amber-700 mt-1">
-                  သင့်ခိုလှုံရာအိမ်သည် စီမံခန့်ခွဲသူ အတည်ပြုရန် စောင့်ဆိုင်းနေပါသည်။ 
+                  သင့်ဂေဟာသည် စီမံခန့်ခွဲသူ အတည်ပြုရန် စောင့်ဆိုင်းနေပါသည်။ 
                   ပရိုဖိုင် အချက်အလက်များကို ပြင်ဆင်နိုင်သော်လည်း အခြားလုပ်ဆောင်ချက်များကို 
                   အတည်ပြုပြီးမှ ဝင်ရောက်နိုင်ပါမည်။
                 </p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Success / Error messages */}
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-green-800 font-medium">{success}</p>
-          </div>
-        )}
-        {error && profile && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-red-800 font-medium">{error}</p>
           </div>
         )}
 
@@ -495,7 +475,7 @@ export default function ShelterProfile({ params }) {
                   <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-sm text-gray-500">ခိုလှုံရာအိမ် ဓာတ်ပုံများ တင်ရန် နှိပ်ပါ</p>
+                  <p className="text-sm text-gray-500">ဂေဟာ ဓာတ်ပုံများ တင်ရန် နှိပ်ပါ</p>
                   <p className="text-xs text-gray-400 mt-1">အများဆုံး ၅ ပုံ (PNG, JPG - 5MB ထိ)</p>
                 </label>
               ) : null}
@@ -511,7 +491,7 @@ export default function ShelterProfile({ params }) {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">
-                      ခိုလှုံရာအိမ် အမည်
+                      ဂေဟာ အမည်
                     </label>
                     <input
                       name="hostelName"
@@ -580,7 +560,7 @@ export default function ShelterProfile({ params }) {
                       rows={4}
                       value={formData.description}
                       onChange={handleChange}
-                      placeholder="ခိုလှုံရာအိမ် အကြောင်း အတိုချုပ် ရေးပါ..."
+                      placeholder="ဂေဟာ အကြောင်း အတိုချုပ် ရေးပါ..."
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
                     />
                   </div>
@@ -588,7 +568,7 @@ export default function ShelterProfile({ params }) {
               ) : (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <InfoField label="ခိုလှုံရာအိမ် အမည်" value={profile?.hostelName} />
+                    <InfoField label="ဂေဟာ အမည်" value={profile?.hostelName} />
                     <InfoField label="အီးမေးလ်" value={profile?.email} />
                     <InfoField label="လိပ်စာ" value={`${profile?.address}, ${profile?.city}`} />
                     <InfoField label="ဖုန်းနံပါတ်" value={profile?.phone} />

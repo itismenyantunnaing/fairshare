@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { uploadImageToCloudinary } from "@/lib/uploadClient";
+import { useToast } from "@/context/ToastContext";
 
 const STATUS_LABEL = {
   pending: "စီမံခန့်ခွဲသူ အတည်ပြုရန် စောင့်ဆိုင်းနေသည်",
@@ -19,6 +20,10 @@ const ITEM_LABEL = {
   pants_child: "ကလေး ဘောင်းဘီ", pants_adult: "လူကြီး ဘောင်းဘီ",
   oil_bottle: "ဆီပုလင်း", other: "အခြား",
 };
+
+function formatDateWithTime(d) {
+  return d ? new Date(d).toLocaleDateString("my-MM", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+}
 
 function donationSummary(d) {
   const cat = d.category || "money";
@@ -40,17 +45,17 @@ function donationSummary(d) {
 
 export default function DonorProfilePage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [user, setUser] = useState(null);
   const [donor, setDonor] = useState(null);
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState(null);
+  const [selectedDonation, setSelectedDonation] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -93,18 +98,11 @@ export default function DonorProfilePage() {
         }
         if (donationsData.success) setDonations(donationsData.donations);
       } catch (err) {
-        setError("အချက်အလက် ခေါ်ယူ၍ မရပါ။");
+        showToast("အချက်အလက် ခေါ်ယူ၍ မရပါ။", "error");
       }
     };
     fetchProfile();
   }, [user]);
-
-  useEffect(() => {
-    if (success) {
-      const t = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [success]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -122,9 +120,8 @@ export default function DonorProfilePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError(null);
     if (formData.password && formData.password !== formData.confirmPassword) {
-      setError("စကားဝှက် နှစ်ကြိမ် ကိုက်ညီပါစေ။");
+      showToast("စကားဝှက် နှစ်ကြိမ် ကိုက်ညီပါစေ။", "error");
       setSaving(false);
       return;
     }
@@ -133,7 +130,7 @@ export default function DonorProfilePage() {
       if (profileImageFile) {
         const uploadResult = await uploadImageToCloudinary(profileImageFile, "donor-profiles");
         if (uploadResult.error) {
-          setError(uploadResult.error);
+          showToast(uploadResult.error, "error");
           setSaving(false);
           return;
         }
@@ -154,7 +151,7 @@ export default function DonorProfilePage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message);
+        showToast(data.message, "success");
         setEditMode(false);
         setFormData((prev) => ({ ...prev, password: "", confirmPassword: "" }));
         setProfileImageFile(null);
@@ -163,10 +160,10 @@ export default function DonorProfilePage() {
         const profileData = await profileRes.json();
         if (profileData.success) setDonor(profileData.donor);
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch (err) {
-      setError("သိမ်းဆည်း၍ မရပါ။");
+      showToast("သိမ်းဆည်း၍ မရပါ။", "error");
     } finally {
       setSaving(false);
     }
@@ -208,17 +205,6 @@ export default function DonorProfilePage() {
             ထွက်ရန်
           </button>
         </div>
-
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-green-800 font-medium">{success}</p>
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-sm text-red-800 font-medium">{error}</p>
-          </div>
-        )}
 
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex items-start gap-6">
@@ -347,23 +333,23 @@ export default function DonorProfilePage() {
             {donations.length === 0 ? (
               <p className="text-sm text-gray-500">အလှူ မှတ်တမ်း မရှိသေးပါ။</p>
             ) : (
-              <ul className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {donations.map((d) => {
                   const cat = d.category || "money";
                   return (
-                    <li
+                    <div
                       key={d.id}
-                      className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                      className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200 transition cursor-pointer"
+                      onClick={() => setSelectedDonation(d)}
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm">{CATEGORY_ICON[cat]}</span>
-                          <span className="text-xs text-gray-500">{CATEGORY_LABEL[cat]}</span>
-                        </div>
-                        <p className="font-medium text-gray-900 text-sm truncate">{donationSummary(d)}</p>
-                        <p className="text-xs text-gray-500">{formatDate(d.createdAt)}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-base">{CATEGORY_ICON[cat]}</span>
+                        <span className="text-xs font-medium text-gray-500">{CATEGORY_LABEL[cat]}</span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <p className="font-semibold text-gray-900 text-sm">{donationSummary(d)}</p>
+                      <p className="text-sm text-gray-500 truncate mt-0.5">{donor?.name || user?.name}</p>
+                      <p className="text-xs text-gray-400 mt-1">{formatDate(d.createdAt)}</p>
+                      <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
                         <span
                           className={`text-xs font-medium px-2 py-1 rounded-full ${
                             d.status === "approved"
@@ -377,49 +363,133 @@ export default function DonorProfilePage() {
                         </span>
                         {d.status === "approved" && d.certificateUrl && (
                           <a
-                            href={d.certificateUrl}
+                            href={`/api/donor/download-certificate?donationId=${d.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:text-blue-800"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                           >
-                            လက်မှတ်
+                            လက်မှတ် ဒေါင်းလုဒ်လုပ်ရန်
                           </a>
                         )}
                       </div>
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
-            )}
-
-            {(donor?.certificates?.filter((c) => c?.url)?.length ?? 0) > 0 && (
-              <div className="mt-8 pt-6 border-t border-gray-100">
-                <h2 className="font-semibold text-gray-900 mb-3">လက်မှတ်များ</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {donor.certificates
-                    .filter((cert) => cert?.url)
-                    .map((cert, idx) => (
-                      <a
-                        key={cert.donationId || idx}
-                        href={cert.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block rounded-lg border border-gray-200 overflow-hidden hover:border-blue-300 transition bg-gray-50"
-                      >
-                        <img
-                          src={cert.url}
-                          alt={`လက်မှတ် ${idx + 1}`}
-                          className="w-full aspect-[3/4] object-cover"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-size='14' font-family='sans-serif'%3Eပုံ မတင်နိုင်ပါ%3C/text%3E%3C/svg%3E";
-                          }}
-                        />
-                      </a>
-                    ))}
-                </div>
               </div>
             )}
+
+            {/* Donation detail modal (read-only, same structure as admin) */}
+            {selectedDonation && (() => {
+              const sd = selectedDonation;
+              const sdCat = sd.category || "money";
+              return (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                  onClick={() => setSelectedDonation(null)}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="donation-detail-title"
+                >
+                  <div
+                    className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="p-5 border-b border-gray-100 flex-shrink-0">
+                      <div className="flex justify-between items-start">
+                        <h3 id="donation-detail-title" className="font-semibold text-gray-900">အလှူ အသေးစိတ်</h3>
+                        <button type="button" onClick={() => setSelectedDonation(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-1" aria-label="ပိတ်ရန်">✕</button>
+                      </div>
+                    </div>
+                    <div className="p-5 space-y-3 text-sm overflow-y-auto flex-1">
+                      <p><span className="text-gray-500">အမျိုးအစား:</span> {CATEGORY_ICON[sdCat]} {CATEGORY_LABEL[sdCat]}</p>
+
+                      {sdCat === "money" && (
+                        <>
+                          <p><span className="text-gray-500">ပမာဏ:</span> {Number(sd.amount).toLocaleString()} MMK</p>
+                          <p><span className="text-gray-500">နည်းလမ်း:</span> {sd.paymentMethod === "kpay" ? "KPay" : "Wave"}</p>
+                        </>
+                      )}
+
+                      {sdCat === "medical" && sd.medicalItems?.length > 0 && (
+                        <div>
+                          <span className="text-gray-500">ဆေးဝါး ပစ္စည်းများ:</span>
+                          <ul className="mt-1 ml-4 list-disc text-gray-700">
+                            {sd.medicalItems.map((it, i) => (
+                              <li key={i}>{it.label || ITEM_LABEL[it.type] || it.type} — {it.quantity}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {sdCat === "clothing" && sd.clothingItems?.length > 0 && (
+                        <div>
+                          <span className="text-gray-500">အဝတ်အစား ပစ္စည်းများ:</span>
+                          <ul className="mt-1 ml-4 list-disc text-gray-700">
+                            {sd.clothingItems.map((it, i) => (
+                              <li key={i}>{it.label || ITEM_LABEL[it.type] || it.type} — {it.quantity}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {sdCat === "food" && (
+                        <div>
+                          {sd.rice?.option && (
+                            <p><span className="text-gray-500">ဆန်:</span> {sd.rice.option === "custom_pyi" && sd.rice.customPyi != null ? `${sd.rice.customPyi} ပြည်` : (RICE_LABEL[sd.rice.option] || sd.rice.option)}{sd.rice.quantity != null && sd.rice.quantity > 1 ? ` ×${sd.rice.quantity}` : ""}</p>
+                          )}
+                          {sd.foodItems?.length > 0 && (
+                            <div>
+                              <span className="text-gray-500">အခြား အစားအစာ:</span>
+                              <ul className="mt-1 ml-4 list-disc text-gray-700">
+                                {sd.foodItems.map((it, i) => (
+                                  <li key={i}>{it.label || ITEM_LABEL[it.type] || it.type} — {it.quantity}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <p><span className="text-gray-500">စုစုပေါင်း ပြည် (ဤအလှူ):</span> <span className="font-semibold">{Number(sd.totalPyi || 0).toLocaleString()} ပြည်</span></p>
+                        </div>
+                      )}
+
+                      <p><span className="text-gray-500">အမည်:</span> {sd.name}</p>
+                      <p><span className="text-gray-500">အီးမေးလ်:</span> {sd.email}</p>
+                      {sd.message && <p><span className="text-gray-500">မှတ်ချက်:</span> {sd.message}</p>}
+                      <p><span className="text-gray-500">နေ့စွဲ:</span> {formatDateWithTime(sd.createdAt)}</p>
+
+                      {sd.transactionScreenshot && (
+                        <div className="mt-4">
+                          <p className="text-xs text-gray-500 mb-2">ငွေလွှဲပုံ</p>
+                          <a href={sd.transactionScreenshot} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-gray-200">
+                            <img src={sd.transactionScreenshot} alt="Screenshot" className="w-full max-h-48 object-contain bg-gray-50" />
+                          </a>
+                        </div>
+                      )}
+
+                      {sd.status === "approved" && sd.certificateUrl && (
+                        <div className="mt-4 pt-4 border-t border-gray-100">
+                          <p className="text-xs text-gray-500 mb-2">လက်မှတ်</p>
+                          <a href={sd.certificateUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-gray-200 mb-3">
+                            <img src={sd.certificateUrl} alt="လက်မှတ်" className="w-full max-h-48 object-contain bg-gray-50" onError={(e) => { e.target.style.display = "none"; }} />
+                          </a>
+                          <a
+                            href={`/api/donor/download-certificate?donationId=${sd.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            လက်မှတ် ဒေါင်းလုဒ်လုပ်ရန်
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

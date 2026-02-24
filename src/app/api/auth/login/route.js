@@ -112,7 +112,7 @@ export async function POST(req) {
     }
     if (status === "rejected") {
       return NextResponse.json(
-        { success: false, error: "သင့်ခိုလှုံရာအိမ် မှတ်ပုံတင်ခြင်းကို ငြင်းပယ်ထားပါသည်။" },
+        { success: false, error: "သင့်ဂေဟာ မှတ်ပုံတင်ခြင်းကို ငြင်းပယ်ထားပါသည်။" },
         { status: 403 }
       );
     }

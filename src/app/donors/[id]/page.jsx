@@ -2,14 +2,16 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export default function PublicDonorPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [donor, setDonor] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -37,10 +39,12 @@ export default function PublicDonorPage({ params }) {
         if (data.success) {
           setDonor(data.donor);
         } else {
-          setError(data.error);
+          showToast(data.error, "error");
+          setLoadFailed(true);
         }
       } catch (err) {
-        setError("အလှူရှင် အချက်အလက် ခေါ်ယူ၍ မရပါ။");
+        showToast("အလှူရှင် အချက်အလက် ခေါ်ယူ၍ မရပါ။", "error");
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -77,7 +81,7 @@ export default function PublicDonorPage({ params }) {
     );
   }
 
-  if (error || !donor) {
+  if (loadFailed || !donor) {
     return (
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
@@ -87,7 +91,7 @@ export default function PublicDonorPage({ params }) {
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">အလှူရှင် မတွေ့ပါ</h2>
-          <p className="text-gray-500 text-sm">{error || "ဤအလှူရှင်ကို ရှာမတွေ့ပါ။"}</p>
+          <p className="text-gray-500 text-sm">ဤအလှူရှင်ကို ရှာမတွေ့ပါ။ မှတ်ချက်ကို ညာဘက် အနားမှ ကြည့်ပါ။</p>
           <Link
             href="/donors"
             className="inline-block mt-6 text-sm text-blue-600 hover:text-blue-800 font-medium"

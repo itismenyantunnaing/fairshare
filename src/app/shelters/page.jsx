@@ -2,14 +2,16 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export default function SheltersPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [shelters, setShelters] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Auth check - only logged in users can view
@@ -38,10 +40,12 @@ export default function SheltersPage() {
       if (data.success) {
         setShelters(data.shelters || []);
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
+        setLoadFailed(true);
       }
     } catch (err) {
-      setError("ခိုလှုံရာအိမ်များ ခေါ်ယူ၍ မရပါ။");
+      showToast("ဂေဟာများ ခေါ်ယူ၍ မရပါ။", "error");
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -90,13 +94,13 @@ export default function SheltersPage() {
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-500">ခိုလှုံရာအိမ်များ ခေါ်ယူနေသည်...</p>
+          <p className="text-gray-500">ဂေဟာများ ခေါ်ယူနေသည်...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (loadFailed) {
     return (
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
@@ -106,7 +110,7 @@ export default function SheltersPage() {
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">အမှားအယွင်း</h2>
-          <p className="text-gray-500 text-sm">{error}</p>
+          <p className="text-gray-500 text-sm">ဂေဟာများ ခေါ်ယူ၍ မရပါ။ မှတ်ချက်ကို ညာဘက် အနားမှ ကြည့်ပါ။</p>
         </div>
       </div>
     );
@@ -117,8 +121,8 @@ export default function SheltersPage() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">ခိုလှုံရာအိမ်များ</h1>
-          <p className="text-gray-500">အတည်ပြုပြီးသော ခိုလှုံရာအိမ်များအားလုံးကို ကြည့်ရှုပါ</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">ဂေဟာများ</h1>
+          <p className="text-gray-500">အတည်ပြုပြီးသော ဂေဟာများအားလုံးကို ကြည့်ရှုပါ</p>
         </div>
 
         {/* Search */}
@@ -126,7 +130,7 @@ export default function SheltersPage() {
           <div className="relative max-w-md">
             <input
               type="text"
-              placeholder="ခိုလှုံရာအိမ် ရှာဖွေရန်..."
+              placeholder="ဂေဟာ ရှာဖွေရန်..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
@@ -149,7 +153,7 @@ export default function SheltersPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
             <p className="text-gray-500">
-              {searchQuery ? "ရှာဖွေမှု ရလဒ် မတွေ့ပါ" : "အတည်ပြုပြီးသော ခိုလှုံရာအိမ် မရှိသေးပါ"}
+              {searchQuery ? "ရှာဖွေမှု ရလဒ် မတွေ့ပါ" : "အတည်ပြုပြီးသော ဂေဟာ မရှိသေးပါ"}
             </p>
           </div>
         ) : (
@@ -238,7 +242,7 @@ export default function SheltersPage() {
         {/* Total count */}
         {filteredShelters.length > 0 && (
           <p className="text-center text-sm text-gray-400 mt-8">
-            စုစုပေါင်း ခိုလှုံရာအိမ် {filteredShelters.length} ခု
+            စုစုပေါင်း ဂေဟာ {filteredShelters.length} ခု
           </p>
         )}
       </div>

@@ -2,13 +2,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export default function DonorsPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [donors, setDonors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -37,10 +39,12 @@ export default function DonorsPage() {
         if (data.success) {
           setDonors(data.donors);
         } else {
-          setError(data.error);
+          showToast(data.error, "error");
+          setLoadFailed(true);
         }
       } catch (err) {
-        setError("အလှူရှင်များ ခေါ်ယူ၍ မရပါ။");
+        showToast("အလှူရှင်များ ခေါ်ယူ၍ မရပါ။", "error");
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -73,7 +77,7 @@ export default function DonorsPage() {
     );
   }
 
-  if (error) {
+  if (loadFailed) {
     return (
       <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
@@ -83,7 +87,7 @@ export default function DonorsPage() {
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">အမှားအယွင်း</h2>
-          <p className="text-gray-500 text-sm">{error}</p>
+          <p className="text-gray-500 text-sm">အလှူရှင်များ ခေါ်ယူ၍ မရပါ။ မှတ်ချက်ကို ညာဘက် အနားမှ ကြည့်ပါ။</p>
         </div>
       </div>
     );

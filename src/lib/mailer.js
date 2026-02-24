@@ -43,7 +43,7 @@ export async function sendRegistrationEmail(to, hostelName, shelterId) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #2563eb; margin-bottom: 16px;">မှတ်ပုံတင်ခြင်း လက်ခံပြီးပါပြီ</h2>
         <p style="color: #374151; font-size: 15px; line-height: 1.6;">
-          သင့်ခိုလှုံရာအိမ် <strong>${hostelName}</strong> ၏ လက်မှတ်ကို AI ဖြင့် အတည်ပြုပြီးပါပြီ။
+          သင့်ဂေဟာ <strong>${hostelName}</strong> ၏ လက်မှတ်ကို AI ဖြင့် အတည်ပြုပြီးပါပြီ။
           ယခု စီမံခန့်ခွဲသူက ကိုယ်တိုင် စစ်ဆေးအတည်ပြုရန် စောင့်ဆိုင်းနေပါသည်။
         </p>
         <p style="color: #374151; font-size: 15px; line-height: 1.6;">
@@ -79,12 +79,12 @@ export async function sendApprovalEmail(to, hostelName, note, shelterId) {
   await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to,
-    subject: `သင့်ခိုလှုံရာအိမ် "${hostelName}" အတည်ပြုပြီးပါပြီ - FairShare`,
+    subject: `သင့်ဂေဟာ "${hostelName}" အတည်ပြုပြီးပါပြီ - FairShare`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #16a34a; margin-bottom: 16px;">မှတ်ပုံတင်ခြင်း အတည်ပြုပြီးပါပြီ</h2>
         <p style="color: #374151; font-size: 15px; line-height: 1.6;">
-          ဂုဏ်ယူပါသည်! သင့်ခိုလှုံရာအိမ် <strong>${hostelName}</strong> ကို ကျွန်ုပ်တို့၏ 
+          ဂုဏ်ယူပါသည်! သင့်ဂေဟာ <strong>${hostelName}</strong> ကို ကျွန်ုပ်တို့၏ 
           စီမံခန့်ခွဲသူအဖွဲ့က စစ်ဆေးပြီး <strong style="color: #16a34a;">အတည်ပြုပြီး</strong> ဖြစ်ပါသည်။
         </p>
         ${
@@ -95,7 +95,7 @@ export async function sendApprovalEmail(to, hostelName, note, shelterId) {
             : ""
         }
         <p style="color: #374151; font-size: 15px; line-height: 1.6;">
-          သင့်ခိုလှုံရာအိမ်သည် ယခု FairShare တွင် စာရင်းသွင်းပြီးဖြစ်ပါသည်။ အောက်ပါလင့်ခ်မှ သင့်ပရိုဖိုင်ကို ဝင်ရောက်ကြည့်ရှုပြီး စီမံခန့်ခွဲနိုင်ပါသည်။
+          သင့်ဂေဟာသည် ယခု FairShare တွင် စာရင်းသွင်းပြီးဖြစ်ပါသည်။ အောက်ပါလင့်ခ်မှ သင့်ပရိုဖိုင်ကို ဝင်ရောက်ကြည့်ရှုပြီး စီမံခန့်ခွဲနိုင်ပါသည်။
         </p>
         <div style="text-align: center; margin: 24px 0;">
           <a href="${profileUrl}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
@@ -120,12 +120,12 @@ export async function sendRejectionEmail(to, hostelName, note) {
   await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to,
-    subject: `သင့်ခိုလှုံရာအိမ် "${hostelName}" မှတ်ပုံတင်ခြင်း အကြောင်းကြားစာ - FairShare`,
+    subject: `သင့်ဂေဟာ "${hostelName}" မှတ်ပုံတင်ခြင်း အကြောင်းကြားစာ - FairShare`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #dc2626; margin-bottom: 16px;">မှတ်ပုံတင်ခြင်း အတည်မပြုပါ</h2>
         <p style="color: #374151; font-size: 15px; line-height: 1.6;">
-          ဝမ်းနည်းစွာ အသိပေးအပ်ပါသည်။ သင့်ခိုလှုံရာအိမ် <strong>${hostelName}</strong> မှတ်ပုံတင်ခြင်းကို 
+          ဝမ်းနည်းစွာ အသိပေးအပ်ပါသည်။ သင့်ဂေဟာ <strong>${hostelName}</strong> မှတ်ပုံတင်ခြင်းကို 
           ကျွန်ုပ်တို့၏ စီမံခန့်ခွဲသူအဖွဲ့က စစ်ဆေးပြီးနောက် <strong style="color: #dc2626;">အတည်မပြုပါ</strong>။
         </p>
         ${

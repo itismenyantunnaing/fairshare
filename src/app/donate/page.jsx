@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Tesseract from "tesseract.js";
 import { uploadImageToCloudinary } from "@/lib/uploadClient";
+import { useToast } from "@/context/ToastContext";
 
 const KPAY_PHONE = process.env.NEXT_PUBLIC_KPAY_PHONE || "09967777577";
 const KPAY_QR_URL = "/kpay_qr.jpg";
@@ -30,13 +31,12 @@ const CLOTHING_OPTIONS = [
 
 export default function DonatePage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState(null);
   const [category, setCategory] = useState("money");
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   const [formData, setFormData] = useState({ amount: "", name: "", email: "", message: "", paymentMethod: "" });
   const [screenshotFile, setScreenshotFile] = useState(null);
@@ -82,7 +82,6 @@ export default function DonatePage() {
   const switchCategory = (cat) => {
     setCategory(cat);
     setStep(1);
-    setError(null);
     setFormData(prev => ({ ...prev, amount: "", paymentMethod: "" }));
     setScreenshotFile(null);
     setScreenshotPreview(null);
@@ -111,22 +110,22 @@ export default function DonatePage() {
   };
 
   const validateCommon = () => {
-    if (!formData.name.trim() || !formData.email.trim()) { setError("အမည်နှင့် အီးမေးလ် ထည့်သွင်းပါ။"); return false; }
-    setError(null); return true;
+    if (!formData.name.trim() || !formData.email.trim()) { showToast("အမည်နှင့် အီးမေးလ် ထည့်သွင်းပါ။", "error"); return false; }
+    return true;
   };
 
   const handleMoneyStep1 = e => {
     e.preventDefault();
-    if (!formData.amount || Number(formData.amount) <= 0) { setError("ပမာဏ ထည့်သွင်းပါ။"); return; }
-    if (!formData.paymentMethod) { setError("ငွေပေးချေနည်း ရွေးပါ။"); return; }
+    if (!formData.amount || Number(formData.amount) <= 0) { showToast("ပမာဏ ထည့်သွင်းပါ။", "error"); return; }
+    if (!formData.paymentMethod) { showToast("ငွေပေးချေနည်း ရွေးပါ။", "error"); return; }
     if (!validateCommon()) return;
     setStep(2);
   };
 
   const handleMoneySubmit = async e => {
     e.preventDefault();
-    if (!screenshotFile) { setError("ငွေလွှဲပုံ ဓာတ်ပုံ တင်ပါ။"); return; }
-    setLoading(true); setError(null);
+    if (!screenshotFile) { showToast("ငွေလွှဲပုံ ဓာတ်ပုံ တင်ပါ။", "error"); return; }
+    setLoading(true);
     try {
       // Run OCR on screenshot for AI verification (like shelter certificate)
       let ocrText = "";
@@ -146,7 +145,7 @@ export default function DonatePage() {
       }
 
       const uploadResult = await uploadImageToCloudinary(screenshotFile, "donations/screenshots");
-      if (uploadResult.error) { setError(uploadResult.error); setLoading(false); return; }
+      if (uploadResult.error) { showToast(uploadResult.error, "error"); setLoading(false); return; }
       const res = await fetch("/api/donations", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -163,8 +162,8 @@ export default function DonatePage() {
         }),
       });
       const data = await res.json();
-      if (data.success) { resetForm(); setSuccess(data.message); } else { setError(data.error); }
-    } catch { setError("အလှူ တင်၍ မရပါ။ ထပ်မံကြိုးစားပါ။"); } finally { setLoading(false); }
+      if (data.success) { resetForm(); showToast(data.message, "success"); } else { showToast(data.error, "error"); }
+    } catch { showToast("အလှူ တင်၍ မရပါ။ ထပ်မံကြိုးစားပါ။", "error"); } finally { setLoading(false); }
   };
 
   const handleItemSubmit = async (e, cat) => {
@@ -180,15 +179,15 @@ export default function DonatePage() {
     }
     const otherQ = parseInt(qty.other_qty, 10);
     if (otherQ > 0 && qty.other_label.trim()) items.push({ type: "other", label: qty.other_label.trim(), quantity: otherQ });
-    if (items.length === 0) { setError(isM ? "ဆေးဝါး ပစ္စည်း အနည်းဆုံး တစ်ခု ပမာဏ ထည့်ပါ။" : "အဝတ်အစား အနည်းဆုံး တစ်ခု ပမာဏ ထည့်ပါ။"); return; }
-    setLoading(true); setError(null);
+    if (items.length === 0) { showToast(isM ? "ဆေးဝါး ပစ္စည်း အနည်းဆုံး တစ်ခု ပမာဏ ထည့်ပါ။" : "အဝတ်အစား အနည်းဆုံး တစ်ခု ပမာဏ ထည့်ပါ။", "error"); return; }
+    setLoading(true);
     try {
       const body = { donorId: user?.role === "donor" ? user.id : null, category: cat, name: formData.name.trim(), email: formData.email.trim(), message: formData.message.trim() || null };
       if (isM) body.medicalItems = items; else body.clothingItems = items;
       const res = await fetch("/api/donations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (data.success) { resetForm(); setSuccess(data.message); } else { setError(data.error); }
-    } catch { setError("အလှူ တင်၍ မရပါ။ ထပ်မံကြိုးစားပါ။"); } finally { setLoading(false); }
+      if (data.success) { resetForm(); showToast(data.message, "success"); } else { showToast(data.error, "error"); }
+    } catch { showToast("အလှူ တင်၍ မရပါ။ ထပ်မံကြိုးစားပါ။", "error"); } finally { setLoading(false); }
   };
 
   const handleFoodSubmit = async (e) => {
@@ -197,11 +196,11 @@ export default function DonatePage() {
     const hasRice = foodState.riceOption && ["one_bag", "half_bag", "custom_pyi"].includes(foodState.riceOption);
     if (hasRice && foodState.riceOption === "custom_pyi") {
       const n = Number(foodState.riceCustomPyi);
-      if (!Number.isFinite(n) || n <= 0) { setError("ပြည် ပမာဏ ထည့်ပါ။"); return; }
+      if (!Number.isFinite(n) || n <= 0) { showToast("ပြည် ပမာဏ ထည့်ပါ။", "error"); return; }
     }
     if (hasRice && (foodState.riceOption === "one_bag" || foodState.riceOption === "half_bag")) {
       const q = parseInt(foodState.riceQuantity, 10);
-      if (!Number.isFinite(q) || q < 1) { setError("ပမာဏ အနည်းဆုံး ၁ ထည့်ပါ။"); return; }
+      if (!Number.isFinite(q) || q < 1) { showToast("ပမာဏ အနည်းဆုံး ၁ ထည့်ပါ။", "error"); return; }
     }
     const foodItems = [];
     const oilQ = parseInt(foodState.oilBottleQty, 10);
@@ -210,8 +209,8 @@ export default function DonatePage() {
       const q = parseInt(row.qty, 10);
       if (Number.isFinite(q) && q > 0 && row.label.trim()) foodItems.push({ type: "other", label: row.label.trim(), quantity: q });
     }
-    if (!hasRice && foodItems.length === 0) { setError("ဆန် သို့မဟုတ် အခြား အစားအစာ အနည်းဆုံး တစ်ခု ရွေးပါ။"); return; }
-    setLoading(true); setError(null);
+    if (!hasRice && foodItems.length === 0) { showToast("ဆန် သို့မဟုတ် အခြား အစားအစာ အနည်းဆုံး တစ်ခု ရွေးပါ။", "error"); return; }
+    setLoading(true);
     try {
       const body = {
         donorId: user?.role === "donor" ? user.id : null,
@@ -230,8 +229,8 @@ export default function DonatePage() {
       body.foodItems = foodItems;
       const res = await fetch("/api/donations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (data.success) { resetForm(); setSuccess(data.message); } else { setError(data.error); }
-    } catch { setError("အလှူ တင်၍ မရပါ။ ထပ်မံကြိုးစားပါ။"); } finally { setLoading(false); }
+      if (data.success) { resetForm(); showToast(data.message, "success"); } else { showToast(data.error, "error"); }
+    } catch { showToast("အလှူ တင်၍ မရပါ။ ထပ်မံကြိုးစားပါ။", "error"); } finally { setLoading(false); }
   };
 
   const resetForm = () => {
@@ -250,9 +249,6 @@ export default function DonatePage() {
     <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
       <div className="max-w-lg mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">လှူဒါန်းရန်</h1>
-
-        {success && <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6"><p className="text-sm text-green-800 font-medium">{success}</p></div>}
-        {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6"><p className="text-sm text-red-800 font-medium">{error}</p></div>}
 
         {/* Category selector */}
         <div className="flex gap-2 mb-6">

@@ -2,6 +2,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { ToastProvider } from "@/context/ToastContext";
+import Toast from "@/components/Toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "FairShare - ကလေးများအတွက် မျှတသောအလှူငွေ ပလက်ဖောင်း",
-  description: "ကလေးများခိုလှုံရာအိမ်များအတွက် မျှတသောအလှူငွေ ပလက်ဖောင်း",
+  description: "ကလေးများဂေဟာများအတွက် မျှတသောအလှူငွေ ပလက်ဖောင်း",
 };
 
 export default function RootLayout({ children }) {
@@ -25,8 +27,11 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <LanguageProvider>
-          <Navbar />
-          {children}
+          <ToastProvider>
+            <Navbar />
+            {children}
+            <Toast />
+          </ToastProvider>
         </LanguageProvider>
       </body>
     </html>

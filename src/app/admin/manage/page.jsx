@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 export default function AdminManagePage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [admin, setAdmin] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [admins, setAdmins] = useState([]);
@@ -13,8 +15,6 @@ export default function AdminManagePage() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [updatingPerm, setUpdatingPerm] = useState(null);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   // Auth check — super admin only (unified)
   useEffect(() => {
@@ -55,24 +55,9 @@ export default function AdminManagePage() {
     if (authChecked) fetchAdmins();
   }, [authChecked]);
 
-  // Auto-dismiss messages
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
   const handleCreate = async (e) => {
     e.preventDefault();
     setCreating(true);
-    setError(null);
 
     try {
       const res = await fetch("/api/admin/manage", {
@@ -82,15 +67,15 @@ export default function AdminManagePage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message);
+        showToast(data.message, "success");
         setFormData({ name: "", email: "", password: "" });
         setShowForm(false);
         fetchAdmins();
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch {
-      setError("စီမံခန့်ခွဲသူ ဖန်တီးခြင်း မအောင်မြင်ပါ။");
+      showToast("စီမံခန့်ခွဲသူ ဖန်တီးခြင်း မအောင်မြင်ပါ။", "error");
     } finally {
       setCreating(false);
     }
@@ -100,7 +85,6 @@ export default function AdminManagePage() {
     const adminIdStr = typeof adminId === "string" ? adminId : adminId?.toString();
     if (!adminIdStr) return;
     setUpdatingPerm(adminIdStr);
-    setError(null);
     try {
       const res = await fetch("/api/admin/manage", {
         method: "PATCH",
@@ -109,13 +93,13 @@ export default function AdminManagePage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message);
+        showToast(data.message, "success");
         fetchAdmins();
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch {
-      setError("ခွင့်ပြုချက် ပြင်ခြင်း မအောင်မြင်ပါ။");
+      showToast("ခွင့်ပြုချက် ပြင်ခြင်း မအောင်မြင်ပါ။", "error");
     } finally {
       setUpdatingPerm(null);
     }
@@ -126,7 +110,6 @@ export default function AdminManagePage() {
       return;
     }
     setDeleting(adminId);
-    setError(null);
 
     try {
       const res = await fetch("/api/admin/manage", {
@@ -136,13 +119,13 @@ export default function AdminManagePage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSuccess(data.message);
+        showToast(data.message, "success");
         fetchAdmins();
       } else {
-        setError(data.error);
+        showToast(data.error, "error");
       }
     } catch {
-      setError("စီမံခန့်ခွဲသူ ဖျက်ခြင်း မအောင်မြင်ပါ။");
+      showToast("စီမံခန့်ခွဲသူ ဖျက်ခြင်း မအောင်မြင်ပါ။", "error");
     } finally {
       setDeleting(null);
     }
@@ -169,18 +152,6 @@ export default function AdminManagePage() {
           </h1>
           <p className="text-sm text-gray-500">စီမံခန့်ခွဲသူ အကောင့်များ ဖန်တီးခြင်းနှင့် ဖျက်ခြင်း</p>
         </div>
-        {/* Messages */}
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-green-800">{success}</p>
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-red-800">{error}</p>
-          </div>
-        )}
-
         {/* Create Admin Button / Form */}
         <div className="mb-6">
           {!showForm ? (
